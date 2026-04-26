@@ -1,5 +1,5 @@
 [package]
-name = "qr_code_generator"
+name = "mid_qr_code_lib"
 version = "0.1.0"
 edition = "2021"
 
