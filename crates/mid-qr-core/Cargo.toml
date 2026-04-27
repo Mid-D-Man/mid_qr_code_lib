@@ -1,0 +1,15 @@
+[package]
+name        = "mid-qr-core"
+version.workspace = true
+edition.workspace = true
+description = "Core QR generation and static-image decode logic for mid-qr"
+
+[features]
+default  = ["generate", "decode"]
+generate = ["dep:qrcode"]
+decode   = ["dep:rxing"]
+
+[dependencies]
+qrcode = { version = "0.13", optional = true }
+rxing  = { version = "0.5",  optional = true, default-features = false,
+           features = ["allow_forced_iso_ied_18004_compliance"] }

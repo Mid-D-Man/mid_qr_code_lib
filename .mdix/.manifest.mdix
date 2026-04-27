@@ -1,0 +1,51 @@
+@CONFIG(
+  version    -> "1.0.0"
+  generated  -> "2026-04-27T00:59:26Z"
+  features   -> "data"
+  debug_mode -> "off"
+)
+
+@DATA(
+  template      = ".mdix/project_structure/project_structure.mdix"
+  template_hash = "b3ba43a4f88e"
+  last_run      = "2026-04-27T00:59:26Z"
+  new_this_run  = 31
+  overridden    = 0
+  skipped       = 2
+  deleted       = 0
+  renamed       = 0
+  updated       = 0
+
+  created_files::
+    "README.md"
+    "crates/mid-qr-core/Cargo.toml"
+    "crates/mid-qr-core/src/decode.rs"
+    "crates/mid-qr-core/src/error.rs"
+    "crates/mid-qr-core/src/generate.rs"
+    "crates/mid-qr-core/src/lib.rs"
+    "crates/mid-qr-wasm/Cargo.toml"
+    "crates/mid-qr-wasm/src/lib.rs"
+    "docs/api.md"
+    "docs/architecture.md"
+    "docs/getting-started.md"
+    "npm/package.json"
+    "npm/rollup.config.js"
+    "npm/src/generator.ts"
+    "npm/src/index.ts"
+    "npm/src/scanner.ts"
+    "npm/src/types.ts"
+    "npm/src/worker/qr-scanner-worker.min.js"
+    "npm/src/worker/qr-scanner.min.js"
+    "npm/tsconfig.json"
+    "npm/wasm/.gitkeep"
+    "tests/.gitkeep"
+    "tests/integration.rs"
+    "wrappers/blazor/MidQrCode.razor"
+    "wrappers/blazor/MidQrCode.razor.cs"
+    "wrappers/blazor/MidQrCode.razor.css"
+    "wrappers/blazor/MidQrScanner.razor"
+    "wrappers/blazor/MidQrScanner.razor.cs"
+    "wrappers/blazor/MidQrScanner.razor.css"
+    "wrappers/blazor/wwwroot/js/midQrModule.js"
+    "wrappers/blazor/wwwroot/wasm/.gitkeep"
+)

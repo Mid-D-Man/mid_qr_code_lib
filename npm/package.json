@@ -1,0 +1,30 @@
+{
+  "name": "mid-qr",
+  "version": "0.1.0",
+  "description": "Unified QR code generation and scanning — WASM core",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "wasm"],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types":  "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build:wasm": "wasm-pack build ../crates/mid-qr-wasm --target web --out-dir ../npm/wasm",
+    "build:ts":   "tsc && rollup -c",
+    "build":      "npm run build:wasm && npm run build:ts",
+    "test":       "vitest run"
+  },
+  "author": "Mid-D-Man",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript":                "^5.0.0",
+    "rollup":                    "^4.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "vitest":                    "^1.0.0"
+  }
+}
