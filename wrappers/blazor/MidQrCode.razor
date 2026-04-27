@@ -1,0 +1,66 @@
+@namespace MidQr.Blazor
+@implements IAsyncDisposable
+
+<div class="mid-qr-code-root @CssClass"
+     style="@(string.IsNullOrEmpty(Style) ? "" : Style)">
+
+    @* ── Loading overlay ──────────────────────────────────────── *@
+    @if (_isLoading)
+    {
+        <div class="mid-qr-overlay" role="status" aria-label="@LoadingMessage">
+            <div class="mid-qr-spinner @(_spinnerSvg.Length > 0 ? "mid-qr-spinner--custom" : "")">
+                @if (_spinnerSvg.Length > 0)
+                {
+                    @((MarkupString)_spinnerSvg)
+                }
+            </div>
+            @if (!string.IsNullOrEmpty(LoadingMessage))
+            {
+                <p class="mid-qr-overlay-text">@LoadingMessage</p>
+            }
+        </div>
+    }
+
+    @* ── Error state ──────────────────────────────────────────── *@
+    @if (_hasError && !_isLoading)
+    {
+        <div class="mid-qr-error-state" role="alert">
+            @if (_errorSvg.Length > 0)
+            {
+                <span class="mid-qr-error-icon">@((MarkupString)_errorSvg)</span>
+            }
+            <p class="mid-qr-error-text">@_errorMessage</p>
+            @if (ShowRetryOnError)
+            {
+                <button class="mid-qr-retry-btn" @onclick="GenerateQrCode"
+                        type="button">
+                    Retry
+                </button>
+            }
+        </div>
+    }
+
+    @* ── QR code SVG container ────────────────────────────────── *@
+    <div id="mid-qr-container-@_instanceId"
+         class="mid-qr-container @((_isLoading || _hasError) ? "mid-qr-hidden" : "")"
+         aria-hidden="@((_isLoading || _hasError) ? "true" : "false")">
+    </div>
+
+    @* ── Locked badge ─────────────────────────────────────────── *@
+    @if (IsLocked && !_isLoading && !_hasError && _lockedSvg.Length > 0)
+    {
+        <div class="mid-qr-locked-badge"
+             title="Locked — only the integrated scanner can decode this QR code">
+            <span class="mid-qr-locked-icon">@((MarkupString)_lockedSvg)</span>
+            <span class="mid-qr-locked-label">Locked</span>
+        </div>
+    }
+
+    @* ── Optional info slot (set via InfoContent RenderFragment) ─ *@
+    @if (InfoContent is not null && !_isLoading && !_hasError)
+    {
+        <div class="mid-qr-info">
+            @InfoContent
+        </div>
+    }
+</div>
