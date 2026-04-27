@@ -1,15 +1,25 @@
 [package]
-name        = "mid-qr-core"
+name    = "mid-qr-core"
 version.workspace = true
 edition.workspace = true
 description = "Core QR generation and static-image decode logic for mid-qr"
 
+# ── Features ────────────────────────────────────────────────────────────────
+# Both are on by default.  WASM consumers can disable `decode` to keep the
+# binary smaller if they only need generation.
 [features]
 default  = ["generate", "decode"]
 generate = ["dep:qrcode"]
 decode   = ["dep:rxing"]
 
+# ── Dependencies ─────────────────────────────────────────────────────────────
 [dependencies]
+# QR code matrix + SVG renderer
 qrcode = { version = "0.13", optional = true }
-rxing  = { version = "0.5",  optional = true, default-features = false,
-           features = ["allow_forced_iso_ied_18004_compliance"] }
+
+# ZXing-derived decoder – pure Rust, compiles to wasm32 cleanly.
+# We disable ALL default features and only pull in the QR format and the
+# HybridBinarizer; this keeps the dependency footprint small.
+rxing = { version = "0.5", optional = true, default-features = false, features = [
+    "allow_forced_iso_ied_18004_compliance",   # strict QR spec compliance
+] }
