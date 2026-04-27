@@ -1,0 +1,279 @@
+/* ============================================================================
+   MidQrScanner.razor.css — scoped styles for the QR scanner component
+   ============================================================================ */
+
+.mid-qr-scanner-root {
+    --mid-qr-scan-accent:  #4fc3f7;
+    --mid-qr-scan-stop:    #f87171;
+    --mid-qr-scan-start:   #4fc3f7;
+    --mid-qr-scan-bg:      #000000;
+    --mid-qr-scan-text:    #ffffff;
+    --mid-qr-scan-radius:  8px;
+
+    display:        flex;
+    flex-direction: column;
+    background:     var(--mid-qr-scan-bg);
+    color:          var(--mid-qr-scan-text);
+    overflow:       hidden;
+    border-radius:  var(--mid-qr-scan-radius);
+    font-family:    inherit;
+}
+
+/* ── Video wrap ───────────────────────────────────────────────────────────── */
+
+.mid-qr-video-wrap {
+    position: relative;
+    flex:     1;
+    min-height: 0;
+    background: var(--mid-qr-scan-bg);
+}
+
+.mid-qr-video-wrap video {
+    display:    block;
+    width:      100%;
+    height:     100%;
+    object-fit: cover;
+    background: var(--mid-qr-scan-bg);
+}
+
+/* ── Scan overlay ─────────────────────────────────────────────────────────── */
+
+.mid-qr-scan-overlay {
+    position:       absolute;
+    inset:          0;
+    display:        flex;
+    align-items:    center;
+    justify-content:center;
+    pointer-events: none;
+    z-index:        5;
+}
+
+.mid-qr-overlay-frame {
+    position: relative;
+    width:    min(280px, 80vw);
+    height:   min(280px, 80vw);
+}
+
+.mid-qr-overlay-frame svg {
+    position: absolute;
+    inset:    0;
+    width:    100%;
+    height:   100%;
+}
+
+/* ── Scan line animation ──────────────────────────────────────────────────── */
+
+.mid-qr-scan-line {
+    position:   absolute;
+    top:        10%;
+    left:       5%;
+    right:      5%;
+    height:     2px;
+    background: linear-gradient(
+        90deg, transparent, var(--mid-qr-scan-accent), transparent
+    );
+    animation:  mid-qr-scanline 2s ease-in-out infinite;
+    z-index:    6;
+}
+
+@keyframes mid-qr-scanline {
+    0%   { transform: translateY(0);     opacity: 0.4; }
+    50%  {                               opacity: 1.0; }
+    100% { transform: translateY(260%);  opacity: 0.4; }
+}
+
+/* ── Processing overlay ───────────────────────────────────────────────────── */
+
+.mid-qr-processing {
+    position:        absolute;
+    inset:           0;
+    display:         flex;
+    flex-direction:  column;
+    align-items:     center;
+    justify-content: center;
+    background:      rgba(0, 0, 0, 0.80);
+    z-index:         20;
+    gap:             10px;
+    border-radius:   var(--mid-qr-scan-radius);
+}
+
+.mid-qr-processing-spinner {
+    width:  36px;
+    height: 36px;
+    color:  var(--mid-qr-scan-accent);
+    border:        3px solid rgba(255,255,255,0.15);
+    border-top:    3px solid var(--mid-qr-scan-accent);
+    border-radius: 50%;
+    animation:     mid-qr-spin 0.9s linear infinite;
+}
+
+.mid-qr-processing-spinner svg {
+    /* when a custom SVG is provided, hide the CSS spinner ring */
+    display:   block;
+    width:     100%;
+    height:    100%;
+    animation: mid-qr-spin 1s linear infinite;
+}
+
+@keyframes mid-qr-spin {
+    to { transform: rotate(360deg); }
+}
+
+.mid-qr-processing-text {
+    color:     rgba(255,255,255,0.85);
+    font-size: 0.875rem;
+    margin:    0;
+}
+
+/* ── Controls bar ─────────────────────────────────────────────────────────── */
+
+.mid-qr-controls {
+    display:         flex;
+    flex-direction:  column;
+    gap:             10px;
+    padding:         14px;
+    background:      var(--mid-qr-scan-bg);
+    border-top:      1px solid rgba(255,255,255,0.10);
+    flex-shrink:     0;
+}
+
+/* Status indicator */
+.mid-qr-status {
+    display:       flex;
+    align-items:   center;
+    justify-content: center;
+    padding:       6px 12px;
+    border-radius: 6px;
+    font-size:     0.78rem;
+    font-weight:   500;
+    animation:     mid-qr-fadein 0.25s ease;
+}
+
+@keyframes mid-qr-fadein {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.mid-qr-status--info {
+    background: rgba(255,255,255,0.08);
+    color:      rgba(255,255,255,0.75);
+    border:     1px solid rgba(255,255,255,0.12);
+}
+
+.mid-qr-status--success {
+    background: rgba(74, 222, 128, 0.12);
+    color:      #4ade80;
+    border:     1px solid rgba(74, 222, 128, 0.30);
+}
+
+.mid-qr-status--error {
+    background: rgba(248, 113, 113, 0.12);
+    color:      #f87171;
+    border:     1px solid rgba(248, 113, 113, 0.30);
+}
+
+/* Control buttons */
+.mid-qr-btn {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    gap:             8px;
+    padding:         10px 16px;
+    min-height:      44px;
+    border:          none;
+    border-radius:   8px;
+    font-size:       0.875rem;
+    font-weight:     600;
+    cursor:          pointer;
+    transition:      background 0.2s ease, transform 0.1s ease;
+    user-select:     none;
+    width:           100%;
+}
+
+.mid-qr-btn:disabled {
+    opacity:        0.5;
+    cursor:         not-allowed;
+    transform:      none !important;
+}
+
+.mid-qr-btn--start {
+    background: var(--mid-qr-scan-start);
+    color:      #000000;
+    box-shadow: 0 2px 8px rgba(79, 195, 247, 0.30);
+}
+
+.mid-qr-btn--start:hover:not(:disabled) {
+    background: #38bdf8;
+    transform:  translateY(-1px);
+}
+
+.mid-qr-btn--stop {
+    background: var(--mid-qr-scan-stop);
+    color:      #000000;
+    box-shadow: 0 2px 8px rgba(248, 113, 113, 0.30);
+}
+
+.mid-qr-btn--stop:hover:not(:disabled) {
+    background: #ef4444;
+    transform:  translateY(-1px);
+}
+
+.mid-qr-btn--camera {
+    background: rgba(255,255,255,0.10);
+    color:      #ffffff;
+    border:     1px solid rgba(255,255,255,0.18);
+}
+
+.mid-qr-btn--camera:hover:not(:disabled) {
+    background: rgba(255,255,255,0.18);
+    transform:  translateY(-1px);
+}
+
+/* Result slot */
+.mid-qr-result {
+    background: rgba(255,255,255,0.05);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding:    12px 14px;
+    font-size:  0.85rem;
+    color:      rgba(255,255,255,0.80);
+}
+
+/* ── Tablet: arrange buttons in a row ────────────────────────────────────── */
+
+@media (min-width: 481px) {
+    .mid-qr-controls {
+        flex-direction: row;
+        flex-wrap:      wrap;
+        align-items:    flex-start;
+    }
+
+    .mid-qr-btn {
+        flex: 1;
+        max-width: 200px;
+    }
+
+    .mid-qr-status {
+        width:   100%;
+        order:   -1;
+    }
+}
+
+/* ── Focus / accessibility ────────────────────────────────────────────────── */
+
+.mid-qr-btn:focus-visible {
+    outline:        2px solid var(--mid-qr-scan-accent);
+    outline-offset: 2px;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .mid-qr-scan-line,
+    .mid-qr-processing-spinner,
+    .mid-qr-status {
+        animation: none;
+    }
+    .mid-qr-btn {
+        transition: none;
+    }
+  }
