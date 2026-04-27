@@ -1,0 +1,100 @@
+@namespace MidQr.Blazor
+@implements IAsyncDisposable
+
+<div class="mid-qr-scanner-root @CssClass"
+     style="width:@Width; height:@Height; @(string.IsNullOrEmpty(Style) ? "" : Style)">
+
+    @* ── Video feed ───────────────────────────────────────────── *@
+    <div class="mid-qr-video-wrap">
+        <video id="mid-qr-video-@_instanceId"
+               autoplay muted playsinline
+               aria-label="Camera feed for QR code scanning">
+        </video>
+
+        @* ── Scan overlay ─────────────────────────────────────── *@
+        @if (ShowOverlay && !string.IsNullOrEmpty(_overlaySvg))
+        {
+            <div class="mid-qr-scan-overlay" aria-hidden="true">
+                <div class="mid-qr-overlay-frame">
+                    @((MarkupString)_overlaySvg)
+                    @if (IsScanning && !IsProcessing)
+                    {
+                        <div class="mid-qr-scan-line"></div>
+                    }
+                </div>
+            </div>
+        }
+
+        @* ── Processing spinner ───────────────────────────────── *@
+        @if (IsProcessing)
+        {
+            <div class="mid-qr-processing" role="status" aria-label="Processing QR code">
+                <div class="mid-qr-processing-spinner">
+                    @if (_spinnerSvg.Length > 0)
+                    {
+                        @((MarkupString)_spinnerSvg)
+                    }
+                </div>
+                <span class="mid-qr-processing-text">@ProcessingMessage</span>
+            </div>
+        }
+    </div>
+
+    @* ── Controls slot ────────────────────────────────────────── *@
+    @if (ShowControls)
+    {
+        <div class="mid-qr-controls">
+
+            @* Sync / status indicator *@
+            @if (!string.IsNullOrEmpty(_statusMessage))
+            {
+                <div class="mid-qr-status mid-qr-status--@_statusType"
+                     role="status" aria-live="polite">
+                    @_statusMessage
+                </div>
+            }
+
+            @if (IsScanning)
+            {
+                <button class="mid-qr-btn mid-qr-btn--stop"
+                        @onclick="StopScanningAsync"
+                        disabled="@IsProcessing"
+                        type="button">
+                    ⏸ @StopLabel
+                </button>
+            }
+            else
+            {
+                <button class="mid-qr-btn mid-qr-btn--start"
+                        @onclick="StartScanningAsync"
+                        type="button">
+                    ▶ @StartLabel
+                </button>
+            }
+
+            @if (IsScanning && ShowCameraSwitch && _cameraCount > 1)
+            {
+                <button class="mid-qr-btn mid-qr-btn--camera"
+                        @onclick="SwitchCameraAsync"
+                        disabled="@IsProcessing"
+                        type="button">
+                    🔄 @CameraSwitchLabel
+                </button>
+            }
+
+            @* Custom controls added by the consumer *@
+            @if (ControlsContent is not null)
+            {
+                @ControlsContent
+            }
+        </div>
+    }
+
+    @* ── Result slot — rendered on each successful scan if provided *@
+    @if (ResultContent is not null && _lastResult is not null)
+    {
+        <div class="mid-qr-result">
+            @ResultContent(_lastResult)
+        </div>
+    }
+</div>
