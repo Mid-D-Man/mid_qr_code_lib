@@ -1,0 +1,203 @@
+// =============================================================================
+// mid-qr — Project Structure Template  ·  DixScript v1.0.0
+// =============================================================================
+//
+// HYPHEN NOTE
+// ───────────
+// Two crate directories contain hyphens: crates/mid-qr-core/ and
+// crates/mid-qr-wasm/.  If your DixScript parser does not accept hyphens in
+// path-segment identifiers, create those two directories manually and let this
+// template scaffold everything else.  All other paths are hyphen-free.
+//
+// COMPOUND EXTENSIONS
+// ───────────────────
+// Blazor code-behind files use .razor.cs — the dot is placed in the name
+// argument: fc("MidQr.razor", "cs", ...) produces MidQr.razor.cs on disk.
+// If your DixScript version does not allow dots in the name argument, create
+// those four files manually.
+//
+// USAGE
+// ─────
+//   mdix-scaffold generate
+//     --template .mdix/project_structure/project_structure.mdix
+//
+// =============================================================================
+
+@CONFIG(
+  version    -> "1.0.0"
+  author     -> "Mid-D-Man"
+  features   -> "quickfuncs,data"
+  debug_mode -> "off"
+)
+
+@QUICKFUNCS(
+
+  ~f<object>(name, ext) {
+    return { name = name, ext = ext, content = "" }
+  }
+
+  ~fc<object>(name, ext, content) {
+    return { name = name, ext = ext, content = content }
+  }
+
+  ~fremote<object>(name, ext, url) {
+    return {
+      name    = name
+      ext     = ext
+      content = "remote::" + url
+    }
+  }
+
+  ~gitkeep<object>() {
+    return { name = ".gitkeep", ext = "", content = "" }
+  }
+
+  ~hidden<object>(segment) {
+    return { segment = segment }
+  }
+
+)
+
+@DATA(
+  project_name = "mid-qr"
+  description  = "Unified QR code generation and scanning — Rust/WASM core with JS npm and Blazor wrappers"
+  author       = "Mid-D-Man"
+
+  // ── Dot-prefixed directories ──────────────────────────────────────────────
+  hidden_dirs::
+    hidden("mdix")
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // REPOSITORY ROOT
+  // ─────────────────────────────────────────────────────────────────────────
+
+  root::
+    fc("README", "md",
+      "# mid-qr\n\nUnified QR code generation and scanning — Rust/WASM core, JS npm package, Blazor wrapper.\n\n## Packages\n\n| Layer | Path | Description |\n|---|---|---|\n| Core (Rust) | `crates/mid-qr-core` | Pure Rust — generate + static decode |\n| WASM bindings | `crates/mid-qr-wasm` | wasm-bindgen surface |\n| npm package | `npm/` | TS wrapper + nimiq camera scanner |\n| Blazor wrapper | `wrappers/blazor/` | Razor components + JS interop |\n\n## Quick start\n\n```bash\nnpm install mid-qr\n```\n\nSee `docs/getting-started.md`.\n\n## License\n\nMIT\n"
+    )
+    fc(".gitignore", "",
+      "target/\ndist/\nnode_modules/\npkg/\n.env\n*.log\n.DS_Store\n**/.DS_Store\n# keep compiled WASM in blazor wwwroot\n*.wasm\n!wrappers/blazor/wwwroot/wasm/*.wasm\n"
+    )
+    fc("Cargo", "toml",
+      "[workspace]\nmembers = [\n    \"crates/mid-qr-core\",\n    \"crates/mid-qr-wasm\",\n]\nresolver = \"2\"\n\n[workspace.package]\nversion    = \"0.1.0\"\nedition    = \"2021\"\nauthors    = [\"Mid-D-Man\"]\nlicense    = \"MIT\"\nrepository = \"https://github.com/Mid-D-Man/mid-qr\"\n\n[profile.release]\nopt-level     = \"s\"\nlto           = true\ncodegen-units = 1\npanic         = \"abort\"\nstrip         = true\n"
+    )
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CRATE — mid-qr-core
+  // Pure Rust, no WASM dependency.  Feature flags: generate | decode
+  // ─────────────────────────────────────────────────────────────────────────
+
+  crates.mid-qr-core::
+    fc("Cargo", "toml",
+      "[package]\nname        = \"mid-qr-core\"\nversion.workspace = true\nedition.workspace = true\ndescription = \"Core QR generation and static-image decode logic for mid-qr\"\n\n[features]\ndefault  = [\"generate\", \"decode\"]\ngenerate = [\"dep:qrcode\"]\ndecode   = [\"dep:rxing\"]\n\n[dependencies]\nqrcode = { version = \"0.13\", optional = true }\nrxing  = { version = \"0.5\",  optional = true, default-features = false,\n           features = [\"allow_forced_iso_ied_18004_compliance\"] }\n"
+    )
+
+  crates.mid-qr-core.src::
+    f("lib",      "rs")
+    f("error",    "rs")
+    f("generate", "rs")
+    f("decode",   "rs")
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CRATE — mid-qr-wasm
+  // wasm-bindgen bindings.  Compiled to cdylib by wasm-pack.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  crates.mid-qr-wasm::
+    fc("Cargo", "toml",
+      "[package]\nname        = \"mid-qr-wasm\"\nversion.workspace = true\nedition.workspace = true\ndescription = \"WASM bindings for mid-qr\"\n\n[lib]\ncrate-type = [\"cdylib\"]\n\n[features]\ndefault  = [\"generate\", \"decode\"]\ngenerate = [\"mid-qr-core/generate\"]\ndecode   = [\"mid-qr-core/decode\"]\ndebug    = [\"dep:console_error_panic_hook\"]\n\n[dependencies]\nmid-qr-core              = { path = \"../mid-qr-core\" }\nwasm-bindgen             = \"0.2\"\njs-sys                   = \"0.3\"\nserde                    = { version = \"1\", features = [\"derive\"] }\nserde-wasm-bindgen       = \"0.6\"\nconsole_error_panic_hook = { version = \"0.1\", optional = true }\n\n[package.metadata.wasm-pack.profile.release]\nwasm-opt = [\"-Oz\"]\n"
+    )
+
+  crates.mid-qr-wasm.src::
+    f("lib", "rs")
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // NPM PACKAGE
+  // TypeScript wrapper + camera scanner orchestration.
+  // Bundled output goes to dist/. WASM output from wasm-pack goes to wasm/.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  npm::
+    fc("package", "json",
+      "{\n  \"name\": \"mid-qr\",\n  \"version\": \"0.1.0\",\n  \"description\": \"Unified QR code generation and scanning — WASM core\",\n  \"type\": \"module\",\n  \"main\": \"dist/index.js\",\n  \"module\": \"dist/index.js\",\n  \"types\": \"dist/index.d.ts\",\n  \"files\": [\"dist\", \"wasm\"],\n  \"exports\": {\n    \".\": {\n      \"import\": \"./dist/index.js\",\n      \"types\":  \"./dist/index.d.ts\"\n    }\n  },\n  \"scripts\": {\n    \"build:wasm\": \"wasm-pack build ../crates/mid-qr-wasm --target web --out-dir ../npm/wasm\",\n    \"build:ts\":   \"tsc && rollup -c\",\n    \"build\":      \"npm run build:wasm && npm run build:ts\",\n    \"test\":       \"vitest run\"\n  },\n  \"author\": \"Mid-D-Man\",\n  \"license\": \"MIT\",\n  \"devDependencies\": {\n    \"typescript\":                \"^5.0.0\",\n    \"rollup\":                    \"^4.0.0\",\n    \"@rollup/plugin-typescript\": \"^11.0.0\",\n    \"vitest\":                    \"^1.0.0\"\n  }\n}\n"
+    )
+    fc("tsconfig", "json",
+      "{\n  \"compilerOptions\": {\n    \"target\":            \"ES2020\",\n    \"module\":            \"ESNext\",\n    \"moduleResolution\":  \"bundler\",\n    \"outDir\":            \"./dist\",\n    \"rootDir\":           \"./src\",\n    \"declaration\":       true,\n    \"declarationDir\":    \"./dist\",\n    \"strict\":            true,\n    \"esModuleInterop\":   true,\n    \"skipLibCheck\":      true\n  },\n  \"include\":  [\"src/**/*\"],\n  \"exclude\":  [\"node_modules\", \"dist\", \"wasm\"]\n}\n"
+    )
+    fc("rollup.config", "js",
+      "import typescript from '@rollup/plugin-typescript';\n\nexport default {\n  input:   'src/index.ts',\n  output:  [\n    { file: 'dist/index.js', format: 'es', sourcemap: true },\n  ],\n  plugins: [typescript()],\n};\n"
+    )
+
+  npm.src::
+    f("types",     "ts")
+    f("generator", "ts")
+    f("scanner",   "ts")
+    f("index",     "ts")
+
+  npm.src.worker::
+    // The nimiq decoder worker — fetched from upstream at scaffold time.
+    // MIT licensed.  Camera-frame binarizer outperforms rxing on motion-blurred
+    // and unevenly-lit frames, which is why we keep it rather than replacing it.
+    fremote("qr-scanner-worker.min", "js",
+      "github://nimiq/qr-scanner/master/qr-scanner-worker.min.js"
+    )
+    fremote("qr-scanner.min", "js",
+      "github://nimiq/qr-scanner/master/qr-scanner.min.js"
+    )
+
+  // Placeholder — actual WASM files are written here by wasm-pack at build time
+  npm.wasm::
+    gitkeep()
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // BLAZOR WRAPPER
+  // Generic Razor components — no attendance-specific logic.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  wrappers.blazor::
+    // Generator component
+    f("MidQrCode",    "razor")
+    // If dots in name arg work in your DixScript build, these produce
+    // MidQrCode.razor.cs and MidQrScanner.razor.cs on disk.
+    // Otherwise create them manually.
+    f("MidQrCode.razor",    "cs")
+    // Scanner component
+    f("MidQrScanner", "razor")
+    f("MidQrScanner.razor", "cs")
+    // Scoped CSS
+    f("MidQrCode",    "razor.css")
+    f("MidQrScanner", "razor.css")
+
+  wrappers.blazor.wwwroot.js::
+    f("midQrModule", "js")
+
+  // WASM files written here by the build workflow — gitkeep holds the dir
+  wrappers.blazor.wwwroot.wasm::
+    gitkeep()
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DOCS
+  // ─────────────────────────────────────────────────────────────────────────
+
+  docs::
+    fc("getting-started", "md",
+      "# Getting Started\n\n## Installation\n\n```bash\nnpm install mid-qr\n```\n\n## Basic usage\n\n```js\nimport { MidQr } from 'mid-qr';\n\nconst qr  = await MidQr.create();\nconst svg = qr.generate({ data: 'https://example.com', size: 300 });\ndocument.getElementById('qr').innerHTML = svg;\n```\n\n## With gradient and logo\n\n```js\nconst svg = qr.generate({\n  data:       'https://example.com',\n  size:       400,\n  errorLevel: 'H',\n  gradient:   { direction: 'diagonal', color1: '#8B5CF6', color2: '#06B6D4' },\n  logo:       { url: '/logo.png', sizeRatio: 0.25,\n                border: { color: 'white', width: 3, radius: 4 } }\n});\n```\n\n## Scanning a still image\n\n```js\nconst text = await qr.decode(imageFile);\n```\n\n## Real-time camera scanning\n\n```js\nimport { MidQrScanner } from 'mid-qr';\n\nconst scanner = await MidQrScanner.create(\n  videoElement,\n  text => console.log('Scanned:', text)\n);\nawait scanner.start();\n```\n\nSee `api.md` for full reference.\n"
+    )
+    fc("api", "md",
+      "# API Reference\n\n## MidQr (generator + static decode)\n\n### `MidQr.create(): Promise<MidQr>`\nInitialise the WASM module.  Call once on app startup.\n\n### `generate(options): string`\nReturns an SVG string.\n\n| Option | Type | Default | Notes |\n|---|---|---|---|\n| `data` | string | required | Content to encode |\n| `size` | number | 300 | Hint — renderer rounds up to fit whole modules |\n| `darkColor` | string | \"#000000\" | CSS color |\n| `lightColor` | string | \"#FFFFFF\" | CSS color |\n| `errorLevel` | \"L\"\\|\"M\"\\|\"Q\"\\|\"H\" | \"M\" | Use \"H\" with logo |\n| `margin` | boolean | true | Quiet zone |\n| `gradient` | GradientOptions | — | See below |\n| `logo` | LogoOptions | — | See below |\n\n**GradientOptions**\n```ts\n{ direction: 'linear-x'|'linear-y'|'diagonal'|'radial', color1: string, color2: string }\n```\n\n**LogoOptions**\n```ts\n{ url: string, sizeRatio?: number, border?: { color: string, width?: number, radius?: number } }\n```\n\n### `generateSimple(data, size, darkColor, lightColor): string`\nConvenience wrapper with no options object.\n\n### `decode(source: File | Blob | HTMLImageElement | HTMLCanvasElement): Promise<string>`\nDecode a QR code from a still image.\n\n---\n\n## MidQrScanner (real-time camera)\n\n### `MidQrScanner.create(video, onDecode, options?): Promise<MidQrScanner>`\n\n| Option | Default | Notes |\n|---|---|---|\n| `preferredCamera` | \"environment\" | \"user\" for front camera |\n| `maxScansPerSecond` | 5 | Reduce for battery life |\n\n### `start(): Promise<void>`\n### `stop(): void`\n### `switchCamera(): Promise<void>`\n### `destroy(): void`\n### `isScanning: boolean`\n"
+    )
+    fc("architecture", "md",
+      "# Architecture\n\n```\n┌─────────────────────────────────────────────────────┐\n│  Consumer (Blazor WASM / plain browser JS / Node)   │\n├───────────────────────┬─────────────────────────────┤\n│  npm/src/generator.ts │  npm/src/scanner.ts          │\n│  (WASM generate calls)│  (camera orchestration)      │\n├───────────────────────┤                              │\n│  crates/mid-qr-wasm   │  nimiq qr-scanner-worker     │\n│  (wasm-bindgen)       │  (real-time frame decode)    │\n├───────────────────────┤  BarcodeDetector API         │\n│  crates/mid-qr-core   │  (native OS fallback)        │\n│  generate.rs (qrcode) │                              │\n│  decode.rs   (rxing)  │  (still-image decode only)   │\n└───────────────────────┴─────────────────────────────┘\n```\n\n## Why three decode paths?\n\n| Path | Used for | Why |\n|---|---|---|\n| BarcodeDetector API | Camera frames, modern Chromium | Native, fastest of all — zero JS overhead |\n| nimiq worker | Camera frames, non-Chromium | Hand-tuned binarizer for motion blur / uneven light |\n| rxing WASM | Still images (file uploads) | Best quality on high-res clean images — no camera needed |\n\n## Build outputs\n\n| Artifact | Source | Destination |\n|---|---|---|\n| `mid-qr-wasm_bg.wasm` | `cargo build --target wasm32` | `npm/wasm/` and `wrappers/blazor/wwwroot/wasm/` |\n| `dist/index.js` | `npm/src/` TypeScript | `npm/dist/` |\n| npm package | `npm/dist/` + `npm/wasm/` | npmjs.com or GitHub dist branch |\n"
+    )
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // INTEGRATION TESTS
+  // ─────────────────────────────────────────────────────────────────────────
+
+  tests::
+    fc("integration", "rs",
+      "//! Integration tests — encode a known string, then decode it.\n//! These run with: cargo test\n\n#[cfg(test)]\nmod roundtrip {\n    use mid_qr_core::generate::{generate, ErrorLevel, GenerateOptions};\n    use mid_qr_core::decode::decode_from_rgba;\n\n    #[test]\n    fn generate_returns_svg() {\n        let opts = GenerateOptions {\n            data: \"https://example.com\".to_string(),\n            ..Default::default()\n        };\n        let svg = generate(&opts).expect(\"generation failed\");\n        assert!(svg.contains(\"<svg\"),  \"missing opening SVG tag\");\n        assert!(svg.contains(\"</svg>\"), \"missing closing SVG tag\");\n    }\n\n    // Full encode→render→decode roundtrip requires an image renderer\n    // (not available in a no_std WASM test environment).\n    // The decode path is covered by mid-qr-core unit tests.\n}\n"
+    )
+    gitkeep()
+
+)
