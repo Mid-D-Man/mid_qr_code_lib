@@ -1,0 +1,262 @@
+/* ============================================================================
+   MidQrCode.razor.css — scoped styles for the QR generator component
+   Uses CSS custom properties so consumers can theme without !important hacks.
+   ============================================================================ */
+
+/* ── Root ─────────────────────────────────────────────────────────────────── */
+
+.mid-qr-code-root {
+    --mid-qr-bg:          var(--bg-secondary,      #ffffff);
+    --mid-qr-border:      var(--border,            #e5e7eb);
+    --mid-qr-accent:      var(--button-primary,    #3b82f6);
+    --mid-qr-text:        var(--text-primary,       #111827);
+    --mid-qr-text-muted:  var(--text-secondary,    #6b7280);
+    --mid-qr-error:       var(--error,             #ef4444);
+    --mid-qr-radius:      12px;
+    --mid-qr-pad:         clamp(12px, 3vw, 24px);
+
+    display:        flex;
+    flex-direction: column;
+    align-items:    center;
+    width:          100%;
+    font-family:    inherit;
+}
+
+/* ── QR container ─────────────────────────────────────────────────────────── */
+
+.mid-qr-container {
+    position:         relative;
+    background-color: var(--mid-qr-bg);
+    border:           1px solid var(--mid-qr-border);
+    border-radius:    var(--mid-qr-radius);
+    box-shadow:       0 4px 15px rgba(0, 0, 0, 0.08);
+    padding:          var(--mid-qr-pad);
+    display:          inline-block;
+    margin:           clamp(8px, 2vw, 16px) 0;
+    min-height:       280px;
+    min-width:        280px;
+    transition:       box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.mid-qr-container:hover {
+    box-shadow:   0 8px 24px rgba(0, 0, 0, 0.12);
+    border-color: var(--mid-qr-accent);
+}
+
+/* Ensure the injected SVG is responsive */
+.mid-qr-container svg,
+.mid-qr-container img {
+    display:   block;
+    max-width: 100%;
+    height:    auto;
+}
+
+/* ── Loading overlay ──────────────────────────────────────────────────────── */
+
+.mid-qr-overlay {
+    position:         absolute;
+    inset:            0;
+    background-color: var(--mid-qr-bg);
+    display:          flex;
+    flex-direction:   column;
+    align-items:      center;
+    justify-content:  center;
+    border-radius:    var(--mid-qr-radius);
+    z-index:          10;
+    gap:              12px;
+}
+
+/* Spinner using a CSS animation — works without SVG too */
+.mid-qr-spinner {
+    width:  36px;
+    height: 36px;
+    color:  var(--mid-qr-accent);
+}
+
+.mid-qr-spinner svg {
+    width:     100%;
+    height:    100%;
+    animation: mid-qr-spin 1s linear infinite;
+}
+
+/* Fallback CSS-only spinner when no SVG is provided */
+.mid-qr-spinner:not(.mid-qr-spinner--custom) {
+    border:        3px solid var(--mid-qr-border);
+    border-top:    3px solid var(--mid-qr-accent);
+    border-radius: 50%;
+    animation:     mid-qr-spin 0.9s linear infinite;
+}
+
+@keyframes mid-qr-spin {
+    to { transform: rotate(360deg); }
+}
+
+.mid-qr-overlay-text {
+    color:       var(--mid-qr-text-muted);
+    font-size:   clamp(0.8rem, 2vw, 0.9rem);
+    font-weight: 500;
+    text-align:  center;
+    margin:      0;
+}
+
+/* ── Error state ──────────────────────────────────────────────────────────── */
+
+.mid-qr-error-state {
+    display:        flex;
+    flex-direction: column;
+    align-items:    center;
+    gap:            10px;
+    padding:        var(--mid-qr-pad);
+    border:         1px solid var(--mid-qr-error);
+    border-radius:  var(--mid-qr-radius);
+    background:     rgba(239, 68, 68, 0.05);
+    min-width:      200px;
+    text-align:     center;
+}
+
+.mid-qr-error-icon {
+    display: block;
+    width:   32px;
+    height:  32px;
+    color:   var(--mid-qr-error);
+}
+
+.mid-qr-error-icon svg {
+    width:  100%;
+    height: 100%;
+}
+
+.mid-qr-error-text {
+    color:     var(--mid-qr-error);
+    font-size: 0.875rem;
+    margin:    0;
+}
+
+.mid-qr-retry-btn {
+    padding:       6px 18px;
+    border:        1px solid var(--mid-qr-accent);
+    border-radius: 6px;
+    background:    transparent;
+    color:         var(--mid-qr-accent);
+    font-size:     0.875rem;
+    cursor:        pointer;
+    transition:    background 0.2s ease;
+}
+
+.mid-qr-retry-btn:hover {
+    background: var(--mid-qr-accent);
+    color:      #ffffff;
+}
+
+/* ── Visibility helper ────────────────────────────────────────────────────── */
+
+.mid-qr-hidden {
+    opacity:    0;
+    visibility: hidden;
+    /* keep in layout so the container doesn't collapse during loading */
+    position:   absolute;
+    pointer-events: none;
+}
+
+/* ── Locked badge ─────────────────────────────────────────────────────────── */
+
+.mid-qr-locked-badge {
+    display:       flex;
+    align-items:   center;
+    gap:           6px;
+    margin-top:    8px;
+    padding:       4px 10px;
+    border-radius: 20px;
+    background:    rgba(59, 130, 246, 0.10);
+    border:        1px solid rgba(59, 130, 246, 0.30);
+    color:         var(--mid-qr-accent);
+    font-size:     0.75rem;
+    font-weight:   600;
+    user-select:   none;
+}
+
+.mid-qr-locked-icon {
+    display: block;
+    width:   14px;
+    height:  14px;
+    flex-shrink: 0;
+}
+
+.mid-qr-locked-icon svg {
+    width:  100%;
+    height: 100%;
+}
+
+/* ── Info slot ────────────────────────────────────────────────────────────── */
+
+.mid-qr-info {
+    background-color: var(--bg-tertiary, #f9fafb);
+    border:           1px solid var(--mid-qr-border);
+    border-left:      4px solid var(--mid-qr-accent);
+    border-radius:    8px;
+    padding:          clamp(10px, 2.5vw, 20px);
+    margin-top:       clamp(12px, 3vw, 24px);
+    width:            100%;
+    max-width:        min(420px, 90vw);
+    font-size:        clamp(0.8rem, 2vw, 0.95rem);
+    color:            var(--mid-qr-text-muted);
+    transition:       border-left-color 0.25s ease;
+}
+
+.mid-qr-info:hover {
+    border-left-color: color-mix(in srgb, var(--mid-qr-accent) 70%, transparent);
+}
+
+/* ── Dark mode ────────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+    .mid-qr-code-root {
+        --mid-qr-bg:     #1f2937;
+        --mid-qr-border: #374151;
+    }
+}
+
+body.dark-mode .mid-qr-container {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.30);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+    .mid-qr-container {
+        padding:    8px;
+        min-height: 240px;
+        min-width:  240px;
+        border-radius: 8px;
+    }
+}
+
+/* ── Accessibility ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .mid-qr-spinner,
+    .mid-qr-spinner svg,
+    .mid-qr-container,
+    .mid-qr-info {
+        animation:  none;
+        transition: none;
+    }
+}
+
+/* ── Print ────────────────────────────────────────────────────────────────── */
+
+@media print {
+    .mid-qr-container {
+        box-shadow: none;
+        border:     1px solid #000;
+        background: white !important;
+        min-height: auto;
+        min-width:  auto;
+    }
+
+    .mid-qr-overlay,
+    .mid-qr-locked-badge,
+    .mid-qr-retry-btn {
+        display: none !important;
+    }
+  }
