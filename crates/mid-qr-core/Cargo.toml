@@ -1,25 +1,29 @@
 [package]
-name    = "mid-qr-core"
+name        = "mid-qr-core"
 version.workspace = true
 edition.workspace = true
 description = "Core QR generation and static-image decode logic for mid-qr"
 
-# ── Features ────────────────────────────────────────────────────────────────
-# Both are on by default.  WASM consumers can disable `decode` to keep the
-# binary smaller if they only need generation.
 [features]
 default  = ["generate", "decode"]
 generate = ["dep:qrcode"]
 decode   = ["dep:rxing"]
 
-# ── Dependencies ─────────────────────────────────────────────────────────────
 [dependencies]
 # QR code matrix + SVG renderer
 qrcode = { version = "0.13", optional = true }
 
-# ZXing-derived decoder – pure Rust, compiles to wasm32 cleanly.
-# We disable ALL default features and only pull in the QR format and the
-# HybridBinarizer; this keeps the dependency footprint small.
-rxing = { version = "0.5", optional = true, default-features = false, features = [
-    "allow_forced_iso_ied_18004_compliance",   # strict QR spec compliance
-] }
+# ── rxing pinned to 0.4.x ────────────────────────────────────────────────────
+# 0.5.20 has a compile error (StringUtils out of scope in decoded_bit_stream_parser.rs).
+# Pin to 0.4 until a fixed 0.5.x is released.
+#
+# 0.4 differences from 0.5 that affect us:
+#   • BufferedImageLuminanceSource::new() takes (Vec<u8>, width, height) — same
+#   • MultiFormatReader::default().decode_with_hints() — same signature
+#   • Result text accessor is .getText() — same
+# Nothing in our decode.rs needs to change except the import path for
+# DecodingHintDictionary (now called DecodeHintDictionary in 0.5 — but in
+# 0.4 it is still DecodingHintDictionary so our code is correct as-is).
+#
+# When upgrading to a fixed 0.5.x, remove this comment block and bump the version.
+rxing = { version = "0.4", optional = true, default-features = false }
