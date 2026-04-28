@@ -13,14 +13,23 @@ decode   = ["dep:rxing"]
 qrcode = { version = "0.13", optional = true }
 
 # ── rxing pinned to 0.8 ──────────────────────────────────────────────────────
-# default-features = false drops the `image` crate dependency, which:
-#   • cannot compile to wasm32-unknown-unknown (uses std::fs / native image decoders)
-#   • is not needed — we receive raw luma bytes from the JS side
+# default-features = false  → drops the `image` crate (uses std::fs, cannot
+#                             compile to wasm32-unknown-unknown).
 #
-# Without the image feature, the correct luminance source is Luma8LuminanceSource.
-# BufferedImageLuminanceSource is only available WITH the image feature — that is
-# why it was missing from the root; it is feature-gated, not unconditionally exported.
+# "encoding_rs"             → REQUIRED.  rxing 0.8 has a compile_error! that
+#                             fires unless either "encoding_rs" or
+#                             "legacy_encoding" is explicitly enabled.
+#                             We choose "encoding_rs" because:
+#                               • It is Mozilla's implementation, explicitly
+#                                 designed for WASM / no_std / browser use.
+#                               • encoding_rs compiles cleanly to
+#                                 wasm32-unknown-unknown with no native deps.
+#                               • "legacy_encoding" uses the old `encoding`
+#                                 crate (0.2) which has known WASM issues.
 #
-# 0.7.0 changed the hints system from HashMap to DecodeHints struct.
-# 0.8.x compiles cleanly to wasm32-unknown-unknown with default-features = false.
-rxing = { version = "0.8", optional = true, default-features = false }
+# The two features we are using from rxing:
+#   Luma8LuminanceSource  — WASM-safe luminance source (no image crate needed)
+#   HybridBinarizer       — standard binarizer, always present
+#   MultiFormatReader     — decode any supported format
+# All three are available with just "encoding_rs", no other features needed.
+rxing = { version = "0.8", optional = true, default-features = false, features = ["encoding_rs"] }
