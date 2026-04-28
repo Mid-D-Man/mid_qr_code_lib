@@ -1,18 +1,3 @@
-# =============================================================================
-# publish-npm.yml
-#
-# Publishes the mid-qr npm package on every v* tag push.
-#
-# Steps
-# ─────
-# 1. Verify package.json version matches the tag
-# 2. Build WASM + assemble dist (reuses build-wasm.yml)
-# 3. Publish from npm/ directory
-#
-# Required secret: NPM_TOKEN
-#   npmjs.com → Account → Access Tokens → Automation token
-# =============================================================================
-
 name: Publish to npm
 
 on:
@@ -21,7 +6,7 @@ on:
       - 'v[0-9]*'
 
 jobs:
-  # ── Version guard ────────────────────────────────────────────────────────────
+  # ── Version guard ─────────────────────────────────────────────────────────────
   guard:
     runs-on: ubuntu-latest
     outputs:
@@ -35,52 +20,49 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Publishing: $VERSION"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Publishing: ${VERSION}"
 
       - name: Verify package.json matches tag
         run: |
           PKG=$(node -p "require('./npm/package.json').version")
           TAG="${{ steps.ver.outputs.version }}"
           if [ "$PKG" != "$TAG" ]; then
-            echo "::error::npm/package.json version ($PKG) ≠ tag ($TAG)"
+            echo "::error::npm/package.json version ($PKG) does not match tag ($TAG)"
             echo "Bump the version in npm/package.json before tagging."
             exit 1
           fi
-          echo "✓ version match: $PKG"
+          echo "version match: $PKG"
 
-  # ── Build ────────────────────────────────────────────────────────────────────
+  # ── Build ─────────────────────────────────────────────────────────────────────
   build:
     needs: guard
-    uses: ./.github/workflows/build-wasm.yml
-
-  # ── Publish ──────────────────────────────────────────────────────────────────
-  publish:
-    needs: [ guard, build ]
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
       - uses: actions/checkout@v4
 
-      # Re-run the build steps inline so we have a fresh working tree.
-      # (workflow_call artefacts are not automatically available cross-job.)
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
 
       - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
+      - name: Run tests
+        run: cargo test -p mid-qr-core --features generate,decode
+
       - name: Build WASM
         run: |
           wasm-pack build crates/mid-qr-wasm \
-            --target web --release \
+            --target web \
+            --release \
             --out-dir ../../npm/wasm \
             --out-name mid_qr_wasm
 
@@ -99,13 +81,16 @@ jobs:
           cache: 'npm'
           cache-dependency-path: npm/package-lock.json
 
-      - name: Install + build TypeScript
+      - name: Install npm dependencies
         working-directory: npm
-        run: |
-          npm ci
-          npm run build:ts
+        run: npm ci
 
-      - name: Publish
+      - name: Build TypeScript
+        working-directory: npm
+        run: npm run build:ts
+
+      # ── Publish ───────────────────────────────────────────────────────────────
+      - name: Publish to npm
         working-directory: npm
         run: npm publish --access public
         env:
