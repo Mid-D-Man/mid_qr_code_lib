@@ -10,20 +10,17 @@ generate = ["dep:qrcode"]
 decode   = ["dep:rxing"]
 
 [dependencies]
-# QR code matrix + SVG renderer
 qrcode = { version = "0.13", optional = true }
 
-# ── rxing pinned to 0.4.x ────────────────────────────────────────────────────
-# 0.5.20 has a compile error (StringUtils out of scope in decoded_bit_stream_parser.rs).
-# Pin to 0.4 until a fixed 0.5.x is released.
+# ── rxing pinned to 0.8 ──────────────────────────────────────────────────────
+# default-features = false drops the `image` crate dependency, which:
+#   • cannot compile to wasm32-unknown-unknown (uses std::fs / native image decoders)
+#   • is not needed — we receive raw luma bytes from the JS side
 #
-# 0.4 differences from 0.5 that affect us:
-#   • BufferedImageLuminanceSource::new() takes (Vec<u8>, width, height) — same
-#   • MultiFormatReader::default().decode_with_hints() — same signature
-#   • Result text accessor is .getText() — same
-# Nothing in our decode.rs needs to change except the import path for
-# DecodingHintDictionary (now called DecodeHintDictionary in 0.5 — but in
-# 0.4 it is still DecodingHintDictionary so our code is correct as-is).
+# Without the image feature, the correct luminance source is Luma8LuminanceSource.
+# BufferedImageLuminanceSource is only available WITH the image feature — that is
+# why it was missing from the root; it is feature-gated, not unconditionally exported.
 #
-# When upgrading to a fixed 0.5.x, remove this comment block and bump the version.
-rxing = { version = "0.4", optional = true, default-features = false }
+# 0.7.0 changed the hints system from HashMap to DecodeHints struct.
+# 0.8.x compiles cleanly to wasm32-unknown-unknown with default-features = false.
+rxing = { version = "0.8", optional = true, default-features = false }
