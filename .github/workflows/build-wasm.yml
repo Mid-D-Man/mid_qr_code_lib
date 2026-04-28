@@ -1,19 +1,3 @@
-# =============================================================================
-# build-wasm.yml
-#
-# Builds the Rust WASM, runs tests, assembles the npm package, and pushes
-# the complete dist output to the `dist` branch.
-#
-# Other repos can reference the dist branch directly:
-#   npm install github:Mid-D-Man/mid-qr#dist
-#
-# Triggers
-# ────────
-# • Every push to main/master (keeps dist branch current)
-# • Manual dispatch (for debugging)
-# • Called by publish-npm.yml and pages.yml
-# =============================================================================
-
 name: Build WASM + assemble dist
 
 on:
@@ -42,33 +26,33 @@ jobs:
       dist-sha: ${{ steps.push-dist.outputs.sha }}
 
     steps:
-      # ── Checkout ────────────────────────────────────────────────────────────
+      # ── Checkout ─────────────────────────────────────────────────────────────
       - name: Checkout source
         uses: actions/checkout@v4
 
-      # ── Rust toolchain ───────────────────────────────────────────────────────
+      # ── Rust toolchain ────────────────────────────────────────────────────────
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
 
-      # ── wasm-pack ────────────────────────────────────────────────────────────
+      # ── wasm-pack ─────────────────────────────────────────────────────────────
       - name: Install wasm-pack
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      # ── Rust cache ───────────────────────────────────────────────────────────
+      # ── Rust cache ────────────────────────────────────────────────────────────
       - name: Cache Rust build artefacts
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: ". -> target"
 
-      # ── Unit tests (native, not WASM — faster, full output) ─────────────────
+      # ── Unit tests ────────────────────────────────────────────────────────────
       - name: Run mid-qr-core tests
         run: cargo test -p mid-qr-core --features generate,decode
 
-      # ── Build WASM ───────────────────────────────────────────────────────────
+      # ── Build WASM ────────────────────────────────────────────────────────────
       - name: Build WASM (release, web target)
         run: |
           wasm-pack build crates/mid-qr-wasm \
@@ -76,41 +60,38 @@ jobs:
             --release \
             --out-dir ../../npm/wasm \
             --out-name mid_qr_wasm
-        working-directory: .
 
-      # ── Copy WASM to Blazor wwwroot ──────────────────────────────────────────
-      - name: Copy WASM → Blazor wwwroot
+      # ── Copy WASM to Blazor wwwroot ───────────────────────────────────────────
+      - name: Copy WASM to Blazor wwwroot
         run: |
           mkdir -p wrappers/blazor/wwwroot/wasm
-          cp npm/wasm/mid_qr_wasm_bg.wasm  wrappers/blazor/wwwroot/wasm/
-          cp npm/wasm/mid_qr_wasm.js       wrappers/blazor/wwwroot/wasm/
-          cp npm/wasm/mid_qr_wasm.d.ts     wrappers/blazor/wwwroot/wasm/
-          echo "✓ WASM copied to Blazor wwwroot"
+          cp npm/wasm/mid_qr_wasm_bg.wasm wrappers/blazor/wwwroot/wasm/
+          cp npm/wasm/mid_qr_wasm.js      wrappers/blazor/wwwroot/wasm/
+          cp npm/wasm/mid_qr_wasm.d.ts    wrappers/blazor/wwwroot/wasm/
+          echo "WASM copied to Blazor wwwroot"
 
-      # ── Fetch nimiq scanner (if not already present) ─────────────────────────
+      # ── Fetch nimiq scanner files ─────────────────────────────────────────────
       - name: Fetch nimiq scanner files
         run: |
           NIMIQ_BASE="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
 
-          # npm worker directory
           mkdir -p npm/src/worker
           for f in qr-scanner.min.js qr-scanner-worker.min.js; do
             if [ ! -f "npm/src/worker/$f" ]; then
               curl -fsSL "$NIMIQ_BASE/$f" -o "npm/src/worker/$f"
-              echo "✓ fetched npm/src/worker/$f"
+              echo "fetched: npm/src/worker/$f"
             else
-              echo "  exists: npm/src/worker/$f"
+              echo "exists:  npm/src/worker/$f"
             fi
           done
 
-          # Blazor wwwroot worker directory
           mkdir -p wrappers/blazor/wwwroot/js/worker
           for f in qr-scanner.min.js qr-scanner-worker.min.js; do
             cp "npm/src/worker/$f" "wrappers/blazor/wwwroot/js/worker/$f"
-            echo "✓ copied to blazor wwwroot: $f"
+            echo "copied to blazor: $f"
           done
 
-      # ── Node.js ──────────────────────────────────────────────────────────────
+      # ── Node.js ───────────────────────────────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -122,84 +103,80 @@ jobs:
         working-directory: npm
         run: npm ci
 
-      # ── Build TypeScript ─────────────────────────────────────────────────────
-      - name: Build TypeScript → dist/
+      # ── Build TypeScript ──────────────────────────────────────────────────────
+      - name: Build TypeScript
         working-directory: npm
         run: npm run build:ts
 
-      # ── Assemble dist tree ───────────────────────────────────────────────────
-      # Layout:
-      #   dist/
-      #     npm/          ← full npm package (dist/ + wasm/ + package.json)
-      #     blazor/       ← Blazor wwwroot additions
-      #     test/         ← GitHub Pages test app (copied from source)
+      # ── Assemble dist tree ────────────────────────────────────────────────────
       - name: Assemble dist directory
         run: |
           rm -rf dist-out
-          mkdir -p dist-out/npm dist-out/blazor dist-out/test
+          mkdir -p dist-out/npm/worker dist-out/blazor dist-out/test
 
-          # npm package files
-          cp -r npm/dist       dist-out/npm/dist
-          cp -r npm/wasm       dist-out/npm/wasm
+          cp -r npm/dist        dist-out/npm/dist
+          cp -r npm/wasm        dist-out/npm/wasm
           cp    npm/package.json dist-out/npm/
-          # include the worker files so npm consumers get them
-          mkdir -p dist-out/npm/worker
+
           cp npm/src/worker/qr-scanner.min.js          dist-out/npm/worker/
           cp npm/src/worker/qr-scanner-worker.min.js   dist-out/npm/worker/
 
-          # Blazor additions
           cp -r wrappers/blazor/wwwroot/wasm dist-out/blazor/wasm
           cp -r wrappers/blazor/wwwroot/js   dist-out/blazor/js
 
-          # Test / GitHub Pages app
           cp -r test/. dist-out/test/
 
-          echo "✓ dist tree assembled"
+          echo "dist tree:"
           find dist-out -type f | sort
 
-      # ── Push to dist branch ──────────────────────────────────────────────────
+      # ── Write dist branch README ──────────────────────────────────────────────
+      # Using printf instead of heredoc to avoid YAML parsing issues.
+      - name: Write dist README
+        run: |
+          printf '%s\n' \
+            '# mid-qr — dist branch' \
+            '' \
+            'Built artefacts — do not edit manually.' \
+            'Source is on the `main` branch.' \
+            '' \
+            '## Use in another project' \
+            '' \
+            '```bash' \
+            'npm install github:Mid-D-Man/mid-qr#dist' \
+            '```' \
+            '' \
+            '## Blazor' \
+            '' \
+            'Copy `blazor/wasm/` into your `wwwroot/wasm/`' \
+            'Copy `blazor/js/`   into your `wwwroot/js/`' \
+            > dist-out/README.md
+
+      # ── Push to dist branch ───────────────────────────────────────────────────
       - name: Push dist branch
         id: push-dist
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Orphan checkout avoids polluting dist with source history
           git fetch origin dist 2>/dev/null || true
           git checkout --orphan dist-tmp
 
-          # Keep only dist-out contents at the repo root
           git rm -rf . --quiet 2>/dev/null || true
+
           cp -r dist-out/. .
           rm -rf dist-out
 
-          # Add a minimal README so the branch is navigable on GitHub
-          cat > README.md << 'EOF'
-          # mid-qr — dist branch
-
-          Built artefacts — do not edit manually.
-          Source is on the `main` branch.
-
-          ## Use in another project
-
-```bash
-          npm install github:Mid-D-Man/mid-qr#dist
-```
-
-          ## Blazor
-
-          Copy `blazor/wasm/` → `wwwroot/wasm/`
-          Copy `blazor/js/`   → `wwwroot/js/`
-          EOF
-
           git add .
-          git diff --staged --quiet && echo "nothing changed" && exit 0
 
-          git commit -m "chore: dist build $(date -u '+%Y-%m-%dT%H:%M:%SZ') [skip ci]"
+          if git diff --staged --quiet; then
+            echo "nothing changed — dist branch is already up to date"
+            exit 0
+          fi
 
-          # Force-push the orphan branch (dist has no meaningful history)
+          TIMESTAMP=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          git commit -m "chore: dist build ${TIMESTAMP} [skip ci]"
           git push origin HEAD:dist --force
 
           SHA=$(git rev-parse HEAD)
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "✓ dist branch updated — $SHA"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "dist branch updated — ${SHA}"
