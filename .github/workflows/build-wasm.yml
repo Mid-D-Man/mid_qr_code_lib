@@ -14,7 +14,7 @@ on:
     outputs:
       dist-sha:
         description: "SHA of the dist branch commit"
-        value: ${{ jobs.build.outputs.dist-sha }}
+        value: "${{ jobs.build.outputs.dist-sha }}"
 
 jobs:
   build:
@@ -23,7 +23,7 @@ jobs:
       contents: write
 
     outputs:
-      dist-sha: ${{ steps.push-dist.outputs.sha }}
+      dist-sha: "${{ steps.push-dist.outputs.sha }}"
 
     steps:
       - name: Checkout source
