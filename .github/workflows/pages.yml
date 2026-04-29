@@ -19,21 +19,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── Rust + wasm-pack ──────────────────────────────────────────────────────
+      # ── Rust toolchain ────────────────────────────────────────────────────────
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
 
+      # ── wasm-pack ─────────────────────────────────────────────────────────────
       - name: Install wasm-pack
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      - name: Cache Rust
+      # ── Rust cache ────────────────────────────────────────────────────────────
+      - name: Cache Rust build artefacts
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
 
-      - name: Build WASM
+      # ── Build WASM ────────────────────────────────────────────────────────────
+      # --enable-bulk-memory is passed via Cargo.toml metadata so wasm-opt
+      # accepts memory.fill / memory.copy instructions from rxing/encoding_rs.
+      - name: Build WASM (release, web target)
         run: |
           wasm-pack build crates/mid-qr-wasm \
             --target web \
@@ -41,15 +48,26 @@ jobs:
             --out-dir ../../npm/wasm \
             --out-name mid_qr_wasm
 
-      # ── Nimiq scanner ─────────────────────────────────────────────────────────
-      - name: Fetch nimiq scanner
+      # ── Verify WASM ───────────────────────────────────────────────────────────
+      - name: Verify WASM artefacts
+        run: |
+          for f in npm/wasm/mid_qr_wasm_bg.wasm \
+                   npm/wasm/mid_qr_wasm.js \
+                   npm/wasm/mid_qr_wasm.d.ts; do
+            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
+            echo "✓ $f ($(du -sh "$f" | cut -f1))"
+          done
+
+      # ── Fetch nimiq scanner ───────────────────────────────────────────────────
+      - name: Fetch nimiq scanner files
         run: |
           NIMIQ="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
           mkdir -p npm/src/worker
           curl -fsSL "$NIMIQ/qr-scanner.min.js"        -o npm/src/worker/qr-scanner.min.js
           curl -fsSL "$NIMIQ/qr-scanner-worker.min.js" -o npm/src/worker/qr-scanner-worker.min.js
+          echo "✓ nimiq scanner files fetched"
 
-      # ── TypeScript ────────────────────────────────────────────────────────────
+      # ── Node.js ───────────────────────────────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -57,30 +75,55 @@ jobs:
           cache: 'npm'
           cache-dependency-path: npm/package-lock.json
 
-      - name: Install + build
+      # ── Build TypeScript ──────────────────────────────────────────────────────
+      - name: Install + build TypeScript
         working-directory: npm
         run: |
           npm ci
           npm run build:ts
 
-      # ── Assemble gh-pages tree ────────────────────────────────────────────────
+      # ── Verify TS output ──────────────────────────────────────────────────────
+      - name: Verify TS build output
+        run: |
+          for f in npm/dist/index.js npm/dist/index.d.ts; do
+            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
+            echo "✓ $f"
+          done
+
+      # ── Assemble GitHub Pages output ──────────────────────────────────────────
+      # Tree layout:
+      #   gh-pages-out/
+      #     index.html            ← test app
+      #     wasm/                 ← WASM binary + JS glue
+      #     js/
+      #       mid-qr.js           ← compiled npm bundle (single ES module)
+      #       worker/             ← nimiq scanner files
+      #
+      # All paths are relative so the test app works at any base URL.
       - name: Assemble GitHub Pages output
         run: |
           rm -rf gh-pages-out
           mkdir -p gh-pages-out/wasm gh-pages-out/js/worker
 
-          cp test/index.html                           gh-pages-out/index.html
-          cp npm/wasm/mid_qr_wasm_bg.wasm              gh-pages-out/wasm/
-          cp npm/wasm/mid_qr_wasm.js                   gh-pages-out/wasm/
-          cp npm/dist/index.js                         gh-pages-out/js/mid-qr.js
+          # Test app entry point
+          cp test/index.html gh-pages-out/index.html
+
+          # WASM binary and JS glue
+          cp npm/wasm/mid_qr_wasm_bg.wasm  gh-pages-out/wasm/
+          cp npm/wasm/mid_qr_wasm.js       gh-pages-out/wasm/
+
+          # Compiled TS bundle — exposed as a single ES module
+          cp npm/dist/index.js             gh-pages-out/js/mid-qr.js
+
+          # nimiq worker — must be in a path accessible from the JS worker scope
           cp npm/src/worker/qr-scanner.min.js          gh-pages-out/js/worker/
           cp npm/src/worker/qr-scanner-worker.min.js   gh-pages-out/js/worker/
 
-          echo "Pages tree:"
+          echo "✓ Pages tree:"
           find gh-pages-out -type f | sort
 
       # ── Push to gh-pages branch ───────────────────────────────────────────────
-      - name: Deploy to gh-pages
+      - name: Deploy to gh-pages branch
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -89,18 +132,19 @@ jobs:
           git checkout --orphan gh-pages-tmp
 
           git rm -rf . --quiet 2>/dev/null || true
-
           cp -r gh-pages-out/. .
           rm -rf gh-pages-out
 
-          git add .
+          # Required by GitHub Pages — tells it not to run Jekyll
+          touch .nojekyll
 
+          git add .
           if git diff --staged --quiet; then
-            echo "nothing changed — gh-pages is already up to date"
+            echo "nothing changed — gh-pages already up to date"
             exit 0
           fi
 
-          TIMESTAMP=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-          git commit -m "deploy: gh-pages ${TIMESTAMP} [skip ci]"
+          git commit -m "deploy: gh-pages $(date -u '+%Y-%m-%dT%H:%M:%SZ') [skip ci]"
           git push origin HEAD:gh-pages --force
-          echo "deployed to gh-pages"
+          echo "✓ deployed to gh-pages"
+          echo "Live at: https://mid-d-man.github.io/mid-qr/"
