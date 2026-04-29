@@ -20,45 +20,57 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Publishing: ${VERSION}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing: $VERSION"
 
-      - name: Verify package.json matches tag
+      - name: Verify npm/package.json version matches tag
         run: |
           PKG=$(node -p "require('./npm/package.json').version")
           TAG="${{ steps.ver.outputs.version }}"
           if [ "$PKG" != "$TAG" ]; then
-            echo "::error::npm/package.json version ($PKG) does not match tag ($TAG)"
+            echo "::error::npm/package.json version ($PKG) ≠ tag ($TAG)"
             echo "Bump the version in npm/package.json before tagging."
             exit 1
           fi
-          echo "version match: $PKG"
+          echo "✓ version match: $PKG"
 
   # ── Build ─────────────────────────────────────────────────────────────────────
   build:
     needs: guard
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
 
+      # ── Rust toolchain ──────────────────────────────────────────────────────
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
 
+      # ── wasm-pack ───────────────────────────────────────────────────────────
       - name: Install wasm-pack
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
           echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      - name: Cache Rust
+      # ── Rust cache ──────────────────────────────────────────────────────────
+      - name: Cache Rust build artefacts
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
 
-      - name: Run tests
+      # ── Unit tests ──────────────────────────────────────────────────────────
+      - name: Run mid-qr-core tests
         run: cargo test -p mid-qr-core --features generate,decode
 
-      - name: Build WASM
+      # ── Build WASM ──────────────────────────────────────────────────────────
+      # --enable-bulk-memory passed via Cargo.toml metadata:
+      #   crates/mid-qr-wasm → [package.metadata.wasm-pack.profile.release]
+      #   wasm-opt = ["-Oz", "--enable-bulk-memory"]
+      - name: Build WASM (release, web target)
         run: |
           wasm-pack build crates/mid-qr-wasm \
             --target web \
@@ -66,13 +78,26 @@ jobs:
             --out-dir ../../npm/wasm \
             --out-name mid_qr_wasm
 
-      - name: Fetch nimiq scanner
+      # ── Verify WASM ─────────────────────────────────────────────────────────
+      - name: Verify WASM artefacts
+        run: |
+          for f in npm/wasm/mid_qr_wasm_bg.wasm \
+                   npm/wasm/mid_qr_wasm.js \
+                   npm/wasm/mid_qr_wasm.d.ts; do
+            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
+            echo "✓ $f ($(du -sh "$f" | cut -f1))"
+          done
+
+      # ── Fetch nimiq scanner ──────────────────────────────────────────────────
+      - name: Fetch nimiq scanner files
         run: |
           NIMIQ="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
           mkdir -p npm/src/worker
           curl -fsSL "$NIMIQ/qr-scanner.min.js"        -o npm/src/worker/qr-scanner.min.js
           curl -fsSL "$NIMIQ/qr-scanner-worker.min.js" -o npm/src/worker/qr-scanner-worker.min.js
+          echo "✓ nimiq scanner files fetched"
 
+      # ── Node.js ─────────────────────────────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -81,17 +106,68 @@ jobs:
           cache: 'npm'
           cache-dependency-path: npm/package-lock.json
 
-      - name: Install npm dependencies
+      # ── Build TypeScript ────────────────────────────────────────────────────
+      - name: Install + build TypeScript
         working-directory: npm
-        run: npm ci
+        run: |
+          npm ci
+          npm run build:ts
 
-      - name: Build TypeScript
-        working-directory: npm
-        run: npm run build:ts
+      # ── Verify TS output ─────────────────────────────────────────────────────
+      - name: Verify TS build output
+        run: |
+          for f in npm/dist/index.js npm/dist/index.d.ts; do
+            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
+            echo "✓ $f"
+          done
 
-      # ── Publish ───────────────────────────────────────────────────────────────
+      # ── Upload artefact for publish job ─────────────────────────────────────
+      - name: Upload npm package artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: |
+            npm/dist/
+            npm/wasm/
+            npm/src/worker/
+            npm/package.json
+            npm/package-lock.json
+          retention-days: 1
+
+  # ── Publish ───────────────────────────────────────────────────────────────────
+  publish:
+    needs: [ guard, build ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Download the pre-built artefact from the build job
+      - name: Download npm package artefact
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: npm-publish/
+
+      # Copy worker files into expected layout
+      - name: Prepare publish layout
+        run: |
+          mkdir -p npm-publish/worker
+          cp npm-publish/src/worker/*.js npm-publish/worker/ 2>/dev/null || true
+
+          echo "Publish contents:"
+          find npm-publish -type f | sort
+
       - name: Publish to npm
-        working-directory: npm
+        working-directory: npm-publish
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
