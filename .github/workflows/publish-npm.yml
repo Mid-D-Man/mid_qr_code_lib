@@ -106,13 +106,11 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
-          cache-dependency-path: npm/package-lock.json
 
       - name: Install and build TypeScript
         working-directory: npm
         run: |
-          npm ci
+          npm install
           npm run build:ts
 
       - name: Verify TS build output
@@ -134,7 +132,6 @@ jobs:
             npm/wasm/
             npm/src/worker/
             npm/package.json
-            npm/package-lock.json
           retention-days: 1
 
   publish:
