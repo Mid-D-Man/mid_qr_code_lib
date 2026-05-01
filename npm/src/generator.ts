@@ -1,9 +1,6 @@
 import type { GenerateOptions, MidQrStatus } from './types.js';
 
 // ── WASM module interface ─────────────────────────────────────────────────────
-// We use `unknown` for the default() return type because wasm-bindgen generates
-// `Promise<InitOutput>` not `Promise<void>`. Using unknown avoids the type
-// overlap error while keeping the rest of the interface strict.
 
 interface WasmModule {
   default(input?: unknown): Promise<unknown>;
@@ -29,8 +26,6 @@ async function ensureWasm(wasmUrl?: string | URL): Promise<WasmModule> {
   if (_initPromise !== null) return _initPromise;
 
   _initPromise = (async (): Promise<WasmModule> => {
-    // Cast through unknown to avoid the InitOutput vs void incompatibility.
-    // The wasm-bindgen generated module satisfies this interface at runtime.
     const mod = await import('../wasm/mid_qr_wasm.js') as unknown as WasmModule;
 
     if (wasmUrl !== undefined) {
@@ -46,17 +41,26 @@ async function ensureWasm(wasmUrl?: string | URL): Promise<WasmModule> {
   return _initPromise;
 }
 
-// ── Generator class ───────────────────────────────────────────────────────────
+// ── WASM trap helper ──────────────────────────────────────────────────────────
 
 /**
- * QR code generator and static-image decoder.
+ * Detect a WebAssembly RuntimeError (WASM trap = Rust panic in release mode).
  *
- * ```ts
- * const qr = await MidQrGenerator.create();
- * const svg = qr.generate({ data: 'https://example.com' });
- * document.getElementById('qr')!.innerHTML = svg;
- * ```
+ * With panic="abort" in the Rust profile, any Rust panic becomes an
+ * `unreachable` WASM instruction which the browser surfaces as a
+ * `WebAssembly.RuntimeError`. The WASM module instance remains valid after
+ * the trap — it behaves like a caught JS exception.
+ *
+ * We convert it to a descriptive Error rather than letting a cryptic
+ * "RuntimeError: unreachable executed" propagate to the caller.
  */
+function isWasmTrap(e: unknown): boolean {
+  if (typeof WebAssembly === 'undefined') return false;
+  return e instanceof WebAssembly.RuntimeError;
+}
+
+// ── Generator class ───────────────────────────────────────────────────────────
+
 export class MidQrGenerator {
   private readonly _wasm: WasmModule;
 
@@ -72,16 +76,29 @@ export class MidQrGenerator {
   // ── Generation ─────────────────────────────────────────────────────────────
 
   generate(options: GenerateOptions): string {
-    return this._wasm.generate({
-      data:       options.data,
-      size:       options.size        ?? 300,
-      darkColor:  options.darkColor   ?? '#000000',
-      lightColor: options.lightColor  ?? '#FFFFFF',
-      errorLevel: options.errorLevel  ?? 'M',
-      margin:     options.margin      ?? true,
-      gradient:   options.gradient,
-      logo:       options.logo,
-    });
+    if (!options.data || options.data.trim().length === 0) {
+      throw new Error('mid-qr: data cannot be empty');
+    }
+
+    try {
+      return this._wasm.generate({
+        data:       options.data,
+        size:       options.size        ?? 300,
+        darkColor:  options.darkColor   ?? '#000000',
+        lightColor: options.lightColor  ?? '#FFFFFF',
+        errorLevel: options.errorLevel  ?? 'M',
+        margin:     options.margin      ?? true,
+        gradient:   options.gradient    ?? undefined,
+        logo:       options.logo        ?? undefined,
+      });
+    } catch (e) {
+      if (isWasmTrap(e)) {
+        throw new Error(
+          'mid-qr: generation failed internally — check that data is not too long for the chosen error level'
+        );
+      }
+      throw e;
+    }
   }
 
   generateSimple(
@@ -90,11 +107,35 @@ export class MidQrGenerator {
     darkColor   = '#000000',
     lightColor  = '#FFFFFF',
   ): string {
-    return this._wasm.generateSimple(data, size, darkColor, lightColor);
+    try {
+      return this._wasm.generateSimple(data, size, darkColor, lightColor);
+    } catch (e) {
+      if (isWasmTrap(e)) {
+        throw new Error('mid-qr: generation failed internally');
+      }
+      throw e;
+    }
   }
 
   // ── Static-image decode ────────────────────────────────────────────────────
 
+  /**
+   * Decode a QR code from a still image.
+   *
+   * Note on RuntimeError: rxing (the Rust decoder) may panic on certain
+   * inputs — very small images, heavily corrupted data, or images that
+   * cause internal assertion failures in rxing's binarizer. This manifests
+   * as a WebAssembly.RuntimeError ("unreachable executed") because Rust's
+   * panic=abort turns panics into WASM unreachable instructions.
+   *
+   * We catch that trap here and surface a clean error message. The WASM
+   * module instance stays valid and all subsequent calls continue to work.
+   *
+   * If you hit this frequently, ensure the image is:
+   *   • At least 100×100 pixels
+   *   • A real QR code (not a barcode or other format)
+   *   • Not excessively large (> 4096×4096 risks stack overflow in rxing)
+   */
   async decode(
     source:
       | File
@@ -107,7 +148,32 @@ export class MidQrGenerator {
       | string,
   ): Promise<string> {
     const { width, height, data } = await this._extractImageData(source);
-    return this._wasm.decodeRgba(data, width, height);
+
+    // Guard obviously bad inputs before calling into WASM
+    if (width < 10 || height < 10) {
+      throw new Error(`mid-qr: image too small (${width}×${height}) — minimum 10×10`);
+    }
+    if (width > 4096 || height > 4096) {
+      throw new Error(`mid-qr: image too large (${width}×${height}) — maximum 4096×4096`);
+    }
+
+    try {
+      return this._wasm.decodeRgba(data, width, height);
+    } catch (e) {
+      if (isWasmTrap(e)) {
+        // rxing panicked internally — convert to a descriptive error.
+        // The most common causes:
+        //   1. No QR code in the image (rxing hits an unreachable branch)
+        //   2. Image too complex (stack overflow in the binarizer)
+        //   3. Corrupted / partial QR code
+        throw new Error(
+          'mid-qr: no QR code found in image, or image is too complex to decode. ' +
+          'Ensure the image contains a clear, complete QR code.'
+        );
+      }
+      // Re-throw rxing decode errors (returned as Err, not panics)
+      throw e;
+    }
   }
 
   rgbaToLuma(rgba: Uint8Array | Uint8ClampedArray): Uint8Array {
@@ -115,22 +181,21 @@ export class MidQrGenerator {
   }
 
   decodeLuma(luma: Uint8Array, width: number, height: number): string {
-    return this._wasm.decodeLuma(luma, width, height);
+    try {
+      return this._wasm.decodeLuma(luma, width, height);
+    } catch (e) {
+      if (isWasmTrap(e)) {
+        throw new Error('mid-qr: no QR code found in luma buffer');
+      }
+      throw e;
+    }
   }
 
   // ── Info ───────────────────────────────────────────────────────────────────
 
-  get version(): string {
-    return this._wasm.getVersion();
-  }
-
-  get supportedErrorLevels(): string {
-    return this._wasm.getSupportedErrorLevels();
-  }
-
-  get supportedGradientDirections(): string {
-    return this._wasm.getSupportedGradientDirections();
-  }
+  get version(): string                    { return this._wasm.getVersion(); }
+  get supportedErrorLevels(): string       { return this._wasm.getSupportedErrorLevels(); }
+  get supportedGradientDirections(): string { return this._wasm.getSupportedGradientDirections(); }
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
