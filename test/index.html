@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>mid-qr — library test</title>
+  <style>
+    /* ── Reset + base ────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f172a;
+      --surface:   #1e293b;
+      --surface2:  #334155;
+      --accent:    #38bdf8;
+      --accent2:   #818cf8;
+      --text:      #f1f5f9;
+      --muted:     #94a3b8;
+      --error:     #f87171;
+      --success:   #4ade80;
+      --radius:    10px;
+      --font: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color:      var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding:    clamp(12px, 3vw, 32px);
+    }
+
+    h1 { font-size: clamp(1.4rem, 4vw, 2rem); color: var(--accent); }
+    h2 { font-size: clamp(1rem, 3vw, 1.25rem); color: var(--accent2); margin-bottom: 14px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: var(--surface2);
+      color: var(--muted);
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .badge.ok  { background: rgba(74,222,128,.15); color: var(--success); }
+    .badge.err { background: rgba(248,113,113,.15); color: var(--error); }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    .page-header { margin-bottom: 32px; }
+    .page-header p { color: var(--muted); margin-top: 6px; font-size: 0.9rem; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background:    var(--surface);
+      border:        1px solid var(--surface2);
+      border-radius: var(--radius);
+      padding:       20px;
+    }
+
+    /* ── Controls ────────────────────────────────────────────────────────── */
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+
+    input[type="text"], input[type="url"],
+    input[type="number"], select, textarea {
+      width:         100%;
+      padding:       8px 12px;
+      background:    var(--surface2);
+      border:        1px solid #475569;
+      border-radius: 6px;
+      color:         var(--text);
+      font-size:     0.875rem;
+      margin-bottom: 12px;
+      outline:       none;
+      transition:    border-color 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    input[type="color"] {
+      width: 48px; height: 34px;
+      padding: 2px; border-radius: 6px;
+      border: 1px solid #475569;
+      background: var(--surface2);
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+
+    .row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 80px; }
+
+    .btn {
+      display:       inline-flex;
+      align-items:   center;
+      justify-content: center;
+      gap:           6px;
+      padding:       9px 18px;
+      border:        none;
+      border-radius: 7px;
+      font-size:     0.875rem;
+      font-weight:   600;
+      cursor:        pointer;
+      transition:    background 0.15s, transform 0.1s;
+      user-select:   none;
+      white-space:   nowrap;
+    }
+
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+
+    .btn-primary  { background: var(--accent);  color: #0f172a; }
+    .btn-secondary{ background: var(--surface2); color: var(--text); }
+    .btn-stop     { background: var(--error);   color: #0f172a; }
+    .btn-success  { background: var(--success); color: #0f172a; }
+
+    /* ── Status ──────────────────────────────────────────────────────────── */
+    .status {
+      font-size: 0.8rem;
+      padding:   6px 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+      display:   none;
+    }
+    .status.show { display: block; }
+    .status.ok  { background: rgba(74,222,128,.12);  color: var(--success); }
+    .status.err { background: rgba(248,113,113,.12); color: var(--error); }
+    .status.info{ background: rgba(56,189,248,.12);  color: var(--accent); }
+
+    /* ── QR output ───────────────────────────────────────────────────────── */
+    #qr-output {
+      min-height: 160px;
+      display:    flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface2);
+      border-radius: 8px;
+      margin-top: 14px;
+      padding:    8px;
+    }
+
+    #qr-output svg { max-width: 100%; height: auto; display: block; }
+
+    .qr-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Scanner ─────────────────────────────────────────────────────────── */
+    .scanner-wrap {
+      position:      relative;
+      background:    #000;
+      border-radius: 8px;
+      overflow:      hidden;
+      aspect-ratio:  4/3;
+      margin-bottom: 12px;
+    }
+
+    #scanner-video {
+      display: block; width: 100%; height: 100%;
+      object-fit: cover;
+    }
+
+    .scan-overlay {
+      position:    absolute;
+      inset:       0;
+      display:     flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .scan-frame {
+      width: min(240px, 75%); height: min(240px, 75%);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      position: relative;
+    }
+
+    .scan-frame::before, .scan-frame::after,
+    .scan-frame > span::before, .scan-frame > span::after {
+      content: ''; position: absolute;
+      width: 20px; height: 20px;
+      border-color: var(--accent); border-style: solid;
+    }
+    .scan-frame::before  { top: -2px;  left: -2px;  border-width: 3px 0 0 3px; border-radius: 8px 0 0 0; }
+    .scan-frame::after   { top: -2px;  right: -2px; border-width: 3px 3px 0 0; border-radius: 0 8px 0 0; }
+    .scan-frame > span::before { bottom: -2px; left: -2px;  border-width: 0 0 3px 3px; border-radius: 0 0 0 8px; }
+    .scan-frame > span::after  { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 8px 0; }
+
+    .scan-line {
+      position: absolute; left: 5%; right: 5%; top: 8%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scanline 2s ease-in-out infinite;
+    }
+    @keyframes scanline {
+      0%   { transform: translateY(0);    opacity: 0.4; }
+      50%  {                              opacity: 1;   }
+      100% { transform: translateY(240px); opacity: 0.4; }
+    }
+
+    /* ── Decode output ───────────────────────────────────────────────────── */
+    .decode-result {
+      font-family: monospace;
+      font-size:   0.85rem;
+      padding:     10px 12px;
+      background:  var(--surface2);
+      border-radius: 6px;
+      word-break:  break-all;
+      min-height:  40px;
+      color:       var(--text);
+      margin-top:  10px;
+    }
+
+    /* ── Checklist ───────────────────────────────────────────────────────── */
+    #checks { list-style: none; }
+    #checks li {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 0;
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--surface2);
+    }
+    #checks li:last-child { border: none; }
+    #checks li .icon { font-size: 1rem; min-width: 20px; text-align: center; }
+
+    /* ── Tabs ────────────────────────────────────────────────────────────── */
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab  {
+      padding: 6px 14px; border-radius: 6px; border: none;
+      background: var(--surface2); color: var(--muted);
+      cursor: pointer; font-size: 0.8rem; font-weight: 600;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tab.active { background: var(--accent); color: #0f172a; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    hr { border: none; border-top: 1px solid var(--surface2); margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<div class="page-header">
+  <h1>mid-qr
+    <span class="badge" id="wasm-badge">loading…</span>
+  </h1>
+  <p>Library test — generation · static decode · camera scan · locked mode</p>
+</div>
+
+<!-- ── Main grid ───────────────────────────────────────────────────────────── -->
+<div class="grid">
+
+  <!-- ── Card 1: Generator ─────────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>⚡ Generator</h2>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="gen-simple">Simple</button>
+      <button class="tab"        data-tab="gen-gradient">Gradient</button>
+      <button class="tab"        data-tab="gen-logo">Logo</button>
+      <button class="tab"        data-tab="gen-locked">Locked</button>
+    </div>
+
+    <!-- Simple -->
+    <div class="tab-panel active" id="gen-simple">
+      <label>Data to encode</label>
+      <input type="text" id="gen-data" value="https://github.com/Mid-D-Man/mid-qr">
+
+      <div class="row">
+        <div>
+          <label>Size (px)</label>
+          <input type="number" id="gen-size" value="300" min="100" max="1000">
+        </div>
+        <div>
+          <label>Error level</label>
+          <select id="gen-ec">
+            <option value="L">L — 7%</option>
+            <option value="M" selected>M — 15%</option>
+            <option value="Q">Q — 25%</option>
+            <option value="H">H — 30%</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div><label>Dark color</label><input type="color" id="gen-dark"  value="#000000"></div>
+        <div><label>Light color</label><input type="color" id="gen-light" value="#ffffff"></div>
+      </div>
+    </div>
+
+    <!-- Gradient -->
+    <div class="tab-panel" id="gen-gradient">
+      <label>Data to encode</label>
+      <input type="text" id="gg-data" value="https://github.com/Mid-D-Man/mid-qr">
+
+      <label>Gradient direction</label>
+      <select id="gg-dir">
+        <option value="linear-x">Horizontal</option>
+        <option value="linear-y">Vertical</option>
+        <option value="diagonal" selected>Diagonal</option>
+        <option value="radial">Radial</option>
+      </select>
+
+      <div class="row">
+        <div><label>Color 1 (start)</label><input type="color" id="gg-c1" value="#8B5CF6"></div>
+        <div><label>Color 2 (end)</label>  <input type="color" id="gg-c2" value="#06B6D4"></div>
+      </div>
+    </div>
+
+    <!-- Logo -->
+    <div class="tab-panel" id="gen-logo">
+      <label>Data to encode</label>
+      <input type="text" id="gl-data" value="https://github.com/Mid-D-Man/mid-qr">
+
+      <label>Logo URL (or data-URI)</label>
+      <input type="url" id="gl-logo" value="https://github.githubassets.com/favicons/favicon.svg">
+
+      <div class="row">
+        <div>
+          <label>Logo size ratio</label>
+          <input type="number" id="gl-ratio" value="0.25" min="0.10" max="0.35" step="0.01">
+        </div>
+        <div>
+          <label>Border color</label>
+          <input type="color" id="gl-border" value="#ffffff">
+        </div>
+      </div>
+    </div>
+
+    <!-- Locked -->
+    <div class="tab-panel" id="gen-locked">
+      <label>Payload (real data — only our scanner sees this)</label>
+      <input type="text" id="glk-data" value="secret-session-token-abc123">
+
+      <label>Redirect URL (what external scanners open)</label>
+      <input type="url" id="glk-redirect" value="https://mid-d-man.github.io/mid-qr/?external=1">
+
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px">
+        External cameras scan the QR → open the redirect URL in a browser.<br>
+        The mid-qr scanner unwraps the real payload automatically.
+      </p>
+    </div>
+
+    <button class="btn btn-primary" id="btn-generate" style="width:100%;margin-top:4px">
+      Generate QR
+    </button>
+
+    <div id="qr-output">
+      <span style="color:var(--muted);font-size:0.85rem">QR code appears here</span>
+    </div>
+
+    <div class="qr-actions" id="qr-actions" style="display:none">
+      <button class="btn btn-secondary" id="btn-copy-svg">Copy SVG</button>
+      <button class="btn btn-secondary" id="btn-download">Download SVG</button>
+    </div>
+
+    <div class="status" id="gen-status"></div>
+  </div>
+
+  <!-- ── Card 2: Static decode ──────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>🔍 Static Image Decode</h2>
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:14px">
+      Upload a QR code image (PNG, JPG, SVG) to decode it using the rxing WASM decoder.
+    </p>
+
+    <label for="decode-file">Select image file</label>
+    <input type="file" id="decode-file" accept="image/*"
+           style="padding:6px;color:var(--text);margin-bottom:12px">
+
+    <button class="btn btn-primary" id="btn-decode" style="width:100%">
+      Decode Image
+    </button>
+
+    <div class="decode-result" id="decode-result" style="color:var(--muted)">
+      Result appears here…
+    </div>
+
+    <div class="status" id="decode-status"></div>
+
+    <hr>
+
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:10px">
+      Or paste an image URL:
+    </p>
+    <input type="url" id="decode-url" placeholder="https://example.com/qr.png">
+    <button class="btn btn-secondary" id="btn-decode-url" style="width:100%">
+      Decode from URL
+    </button>
+  </div>
+
+  <!-- ── Card 3: Camera scanner ─────────────────────────────────────────────── -->
+  <div class="card">
+    <h2>📷 Camera Scanner</h2>
+
+    <div class="scanner-wrap">
+      <video id="scanner-video" autoplay muted playsinline></video>
+      <div class="scan-overlay" id="scan-overlay" style="display:none">
+        <div class="scan-frame">
+          <span></span>
+          <div class="scan-line" id="scan-line"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn btn-primary"   id="btn-start-scan" style="flex:1">▶ Start</button>
+      <button class="btn btn-stop"      id="btn-stop-scan"  style="flex:1" disabled>⏸ Stop</button>
+      <button class="btn btn-secondary" id="btn-switch-cam" style="flex:1" disabled>🔄 Switch</button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <input type="checkbox" id="locked-mode-chk" style="width:auto;margin:0">
+      <label for="locked-mode-chk" style="margin:0;cursor:pointer">
+        Locked mode (only accept mid-qr payloads)
+      </label>
+    </div>
+
+    <div class="decode-result" id="scan-result" style="color:var(--muted)">
+      Scan result appears here…
+    </div>
+
+    <div class="status" id="scan-status"></div>
+  </div>
+
+  <!-- ── Card 4: Feature checklist ─────────────────────────────────────────── -->
+  <div class="card">
+    <h2>✅ Feature Checklist</h2>
+    <ul id="checks">
+      <li><span class="icon" id="chk-wasm">⏳</span> WASM loaded</li>
+      <li><span class="icon" id="chk-generate">⏳</span> QR generation (simple)</li>
+      <li><span class="icon" id="chk-gradient">⏳</span> Gradient generation</li>
+      <li><span class="icon" id="chk-logo">⏳</span> Logo generation</li>
+      <li><span class="icon" id="chk-locked">⏳</span> Locked-mode encoding</li>
+      <li><span class="icon" id="chk-decode">⏳</span> Static image decode</li>
+      <li><span class="icon" id="chk-camera">⏳</span> Camera available</li>
+      <li><span class="icon" id="chk-native">⏳</span> Native BarcodeDetector API</li>
+    </ul>
+
+    <hr>
+
+    <div style="font-size:0.8rem;color:var(--muted)">
+      <strong style="color:var(--text)">Build info</strong><br>
+      <span id="lib-version">—</span>
+    </div>
+  </div>
+
+</div><!-- /grid -->
+
+<!-- ── Scripts ──────────────────────────────────────────────────────────────── -->
+<!--
+  The test page uses the built ES module directly.
+  Paths assume the gh-pages tree assembled by pages.yml:
+    js/mid-qr.js        ← compiled npm/dist/index.js
+    wasm/               ← WASM binary + glue
+    js/worker/          ← nimiq scanner files
+-->
+<script type="module">
+
+// ── Helper utilities ────────────────────────────────────────────────────────
+
+const $ = id => document.getElementById(id);
+
+function showStatus(id, msg, type = 'info') {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className   = `status show ${type}`;
+  if (type !== 'err') {
+    setTimeout(() => { el.className = 'status'; }, 4000);
+  }
+}
+
+function setCheck(id, pass, pending = false) {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = pending ? '⏳' : pass ? '✅' : '❌';
+}
+
+// ── WASM init ────────────────────────────────────────────────────────────────
+// Import from the assembled gh-pages path.
+// Change this to '../npm/dist/index.js' for local dev against the source tree.
+
+let MidQr, MidQrScanner;
+
+try {
+  const mod = await import('./js/mid-qr.js');
+  MidQr        = mod.MidQr;
+  MidQrScanner = mod.MidQrScanner;
+} catch (err) {
+  $('wasm-badge').textContent = 'import failed';
+  $('wasm-badge').className   = 'badge err';
+  showStatus('gen-status', `Module import failed: ${err}`, 'err');
+  throw err;
+}
+
+// Explicit WASM URL — required on GitHub Pages because import.meta.url
+// resolves to the JS file location, not necessarily the wasm/ directory.
+const wasmUrl = new URL('./wasm/mid_qr_wasm_bg.wasm', location.href);
+
+let qr;
+try {
+  qr = await MidQr.create(wasmUrl);
+
+  $('wasm-badge').textContent = `v${qr.version}`;
+  $('wasm-badge').className   = 'badge ok';
+  $('lib-version').textContent =
+    `Version: ${qr.version} | ` +
+    `BarcodeDetector: ${'BarcodeDetector' in window ? '✅ native' : '❌ JS worker'}`;
+
+  setCheck('chk-wasm', true);
+} catch (err) {
+  $('wasm-badge').textContent = 'error';
+  $('wasm-badge').className   = 'badge err';
+  setCheck('chk-wasm', false);
+  showStatus('gen-status', `WASM init failed: ${err}`, 'err');
+}
+
+// Native BarcodeDetector check
+setCheck('chk-native', 'BarcodeDetector' in window);
+
+// Camera availability check
+MidQr.hasCamera().then(has => setCheck('chk-camera', has));
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const group = tab.closest('.card');
+    group.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    group.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    group.querySelector(`#${tab.dataset.tab}`)?.classList.add('active');
+  });
+});
+
+// ── Generator ────────────────────────────────────────────────────────────────
+
+let _lastSvg = '';
+
+$('btn-generate').addEventListener('click', async () => {
+  if (!qr) { showStatus('gen-status', 'WASM not loaded', 'err'); return; }
+
+  const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+  let svg;
+
+  try {
+    switch (activeTab) {
+      case 'gen-gradient': {
+        svg = qr.generate({
+          data:       $('gg-data').value,
+          size:       300,
+          errorLevel: 'M',
+          gradient: {
+            direction: $('gg-dir').value,
+            color1:    $('gg-c1').value,
+            color2:    $('gg-c2').value,
+          },
+        });
+        setCheck('chk-gradient', true);
+        break;
+      }
+
+      case 'gen-logo': {
+        svg = qr.generate({
+          data:       $('gl-data').value,
+          size:       300,
+          errorLevel: 'H',   // always H with logo
+          logo: {
+            url:       $('gl-logo').value,
+            sizeRatio: parseFloat($('gl-ratio').value),
+            border: {
+              color:  $('gl-border').value,
+              width:  3,
+              radius: 4,
+            },
+          },
+        });
+        setCheck('chk-logo', true);
+        break;
+      }
+
+      case 'gen-locked': {
+        const payload     = $('glk-data').value;
+        const redirectUrl = $('glk-redirect').value;
+
+        if (!redirectUrl) throw new Error('Redirect URL is required for locked mode');
+
+        // Build the locked URL manually here (mirrors Rust/C# logic)
+        const b64 = btoa(unescape(encodeURIComponent(JSON.stringify({ data: payload }))));
+        const sep  = redirectUrl.includes('?') ? '&' : '?';
+        const lockedData = `${redirectUrl}${sep}mid-qr-v1=${b64}`;
+
+        svg = qr.generate({
+          data:       lockedData,
+          size:       300,
+          errorLevel: 'H',
+        });
+        setCheck('chk-locked', true);
+        showStatus('gen-status',
+          `Locked. External scanners see: ${redirectUrl}`, 'info');
+        break;
+      }
+
+      default: {
+        svg = qr.generate({
+          data:       $('gen-data').value,
+          size:       parseInt($('gen-size').value, 10),
+          errorLevel: $('gen-ec').value,
+          darkColor:  $('gen-dark').value,
+          lightColor: $('gen-light').value,
+        });
+        setCheck('chk-generate', true);
+        break;
+      }
+    }
+
+    _lastSvg = svg;
+    $('qr-output').innerHTML = svg;
+    $('qr-actions').style.display = 'flex';
+    if (activeTab !== 'gen-locked') {
+      showStatus('gen-status', '✅ Generated successfully', 'ok');
+    }
+
+  } catch (err) {
+    showStatus('gen-status', `Generation failed: ${err}`, 'err');
+  }
+});
+
+// Copy SVG to clipboard
+$('btn-copy-svg').addEventListener('click', async () => {
+  if (!_lastSvg) return;
+  await navigator.clipboard.writeText(_lastSvg);
+  showStatus('gen-status', '✅ SVG copied to clipboard', 'ok');
+});
+
+// Download SVG
+$('btn-download').addEventListener('click', () => {
+  if (!_lastSvg) return;
+  const blob = new Blob([_lastSvg], { type: 'image/svg+xml' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {
+    href: url, download: 'mid-qr.svg',
+  });
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ── Static decode ────────────────────────────────────────────────────────────
+
+async function runDecode(source) {
+  if (!qr) { showStatus('decode-status', 'WASM not loaded', 'err'); return; }
+
+  try {
+    showStatus('decode-status', '⏳ Decoding…', 'info');
+    const text = await qr.decode(source);
+    $('decode-result').textContent = text;
+    $('decode-result').style.color = 'var(--success)';
+    setCheck('chk-decode', true);
+    showStatus('decode-status', '✅ Decoded', 'ok');
+  } catch (err) {
+    $('decode-result').textContent = `Error: ${err}`;
+    $('decode-result').style.color = 'var(--error)';
+    showStatus('decode-status', `Decode failed: ${err}`, 'err');
+  }
+}
+
+$('btn-decode').addEventListener('click', () => {
+  const file = $('decode-file').files?.[0];
+  if (!file) { showStatus('decode-status', 'Select an image file first', 'err'); return; }
+  runDecode(file);
+});
+
+$('btn-decode-url').addEventListener('click', () => {
+  const url = $('decode-url').value.trim();
+  if (!url) { showStatus('decode-status', 'Enter an image URL first', 'err'); return; }
+  runDecode(url);
+});
+
+// ── Camera scanner ────────────────────────────────────────────────────────────
+
+let _scanner = null;
+const LOCKED_PREFIX = 'mid-qr-v1=';
+
+function unwrapLocked(raw) {
+  const idx = raw.indexOf(LOCKED_PREFIX);
+  if (idx < 0) return { payload: raw, wasLocked: false };
+  try {
+    let b64 = raw.slice(idx + LOCKED_PREFIX.length);
+    b64 = b64.split('&')[0].split('#')[0];
+    const json = decodeURIComponent(escape(atob(b64)));
+    const data = JSON.parse(json).data ?? raw;
+    return { payload: data, wasLocked: true };
+  } catch { return { payload: raw, wasLocked: false }; }
+}
+
+$('btn-start-scan').addEventListener('click', async () => {
+  if (_scanner) return;
+
+  try {
+    _scanner = await MidQrScanner.create(
+      $('scanner-video'),
+      result => {
+        const lockedMode = $('locked-mode-chk').checked;
+        const { payload, wasLocked } = unwrapLocked(result.data);
+
+        if (lockedMode && !wasLocked) {
+          showStatus('scan-status',
+            `⚠️ Non-locked QR detected and rejected:\n${result.data}`, 'err');
+          $('scan-result').textContent = '[rejected — not a locked mid-qr code]';
+          $('scan-result').style.color = 'var(--error)';
+          return;
+        }
+
+        $('scan-result').textContent = wasLocked
+          ? `🔒 Locked payload: ${payload}`
+          : payload;
+        $('scan-result').style.color = wasLocked
+          ? 'var(--accent)' : 'var(--success)';
+
+        showStatus('scan-status',
+          wasLocked ? '✅ Locked payload unwrapped' : '✅ Scanned', 'ok');
+      },
+      { preferredCamera: 'environment', maxScansPerSecond: 5 },
+    );
+
+    await _scanner.start();
+
+    $('scan-overlay').style.display = 'flex';
+    $('btn-start-scan').disabled = true;
+    $('btn-stop-scan').disabled  = false;
+    $('btn-switch-cam').disabled = _scanner.cameras.length <= 1;
+
+    showStatus('scan-status', '📷 Camera active', 'info');
+  } catch (err) {
+    showStatus('scan-status', `Camera error: ${err}`, 'err');
+  }
+});
+
+$('btn-stop-scan').addEventListener('click', () => {
+  _scanner?.stop();
+  _scanner?.destroy();
+  _scanner = null;
+
+  $('scan-overlay').style.display  = 'none';
+  $('btn-start-scan').disabled     = false;
+  $('btn-stop-scan').disabled      = true;
+  $('btn-switch-cam').disabled     = true;
+
+  showStatus('scan-status', 'Scanner stopped', 'info');
+});
+
+$('btn-switch-cam').addEventListener('click', async () => {
+  if (!_scanner) return;
+  try {
+    await _scanner.switchCamera();
+    showStatus('scan-status', '🔄 Camera switched', 'info');
+  } catch (err) {
+    showStatus('scan-status', `Switch failed: ${err}`, 'err');
+  }
+});
+
+</script>
+</body>
+  </html>
