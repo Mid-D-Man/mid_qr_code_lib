@@ -21,20 +21,14 @@ serde                    = { version = "1", features = ["derive"] }
 serde-wasm-bindgen       = "0.6"
 console_error_panic_hook = { version = "0.1", optional = true }
 
-# ── wasm-opt config ───────────────────────────────────────────────────────────
-# rxing (and encoding_rs) emit bulk-memory instructions (memory.fill,
-# memory.copy) which are part of the WebAssembly bulk-memory-operations
-# proposal — enabled by default in all modern browsers and in Rust's
-# wasm32-unknown-unknown target since 2021.
-#
-# The version of wasm-opt bundled with wasm-pack however defaults this
-# proposal OFF and fails validation.  We pass --enable-bulk-memory
-# explicitly so wasm-opt accepts and optimises the binary correctly.
-#
-# Alternative: set wasm-opt = false to skip optimisation entirely.
-# That produces a larger binary (~10-20%) but avoids the wasm-opt dependency.
+# ── wasm-opt disabled ─────────────────────────────────────────────────────────
+# The wasm-opt binary bundled with wasm-pack is too old to handle the
+# WebAssembly proposals that rustc + rxing + encoding_rs emit:
+#   • bulk-memory          (memory.fill / memory.copy)
+#   • nontrapping-float-to-int  (i32.trunc_sat_f32_s / _u)
+# Rather than chasing individual --enable-* flags against an unknown bundled
+# version, we disable wasm-opt here and run it explicitly in CI using a
+# separately installed binaryen with all required proposals enabled.
+# The CI step is in .github/workflows/build-wasm.yml (the "Optimise WASM" step).
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz", "--enable-bulk-memory"]
-
-[package.metadata.wasm-pack.profile.profiling]
-wasm-opt = ["-O", "--enable-bulk-memory"]
+wasm-opt = false
