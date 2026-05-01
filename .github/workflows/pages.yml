@@ -80,13 +80,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: npm/package-lock.json
 
       - name: Install and build TypeScript
         working-directory: npm
         run: |
-          npm ci
+          npm install
           npm run build:ts
 
       - name: Verify TS build output
@@ -103,12 +101,12 @@ jobs:
         run: |
           rm -rf gh-pages-out
           mkdir -p gh-pages-out/wasm gh-pages-out/js/worker
-          cp test/index.html                                     gh-pages-out/index.html
-          cp npm/wasm/mid_qr_wasm_bg.wasm                       gh-pages-out/wasm/
-          cp npm/wasm/mid_qr_wasm.js                            gh-pages-out/wasm/
-          cp npm/dist/index.js                                   gh-pages-out/js/mid-qr.js
-          cp npm/src/worker/qr-scanner.min.js                   gh-pages-out/js/worker/
-          cp npm/src/worker/qr-scanner-worker.min.js            gh-pages-out/js/worker/
+          cp test/index.html                           gh-pages-out/index.html
+          cp npm/wasm/mid_qr_wasm_bg.wasm             gh-pages-out/wasm/
+          cp npm/wasm/mid_qr_wasm.js                  gh-pages-out/wasm/
+          cp npm/dist/index.js                         gh-pages-out/js/mid-qr.js
+          cp npm/src/worker/qr-scanner.min.js          gh-pages-out/js/worker/
+          cp npm/src/worker/qr-scanner-worker.min.js   gh-pages-out/js/worker/
           touch gh-pages-out/.nojekyll
           echo "Pages tree:"
           find gh-pages-out -type f | sort
