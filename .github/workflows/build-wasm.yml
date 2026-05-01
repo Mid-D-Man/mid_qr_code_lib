@@ -14,7 +14,7 @@ on:
     outputs:
       dist-sha:
         description: "SHA of the dist branch commit"
-        value: "${{ jobs.build.outputs.dist-sha }}"
+        value: ${{ jobs.build.outputs.dist-sha }}
 
 jobs:
   build:
@@ -23,7 +23,7 @@ jobs:
       contents: write
 
     outputs:
-      dist-sha: "${{ steps.push-dist.outputs.sha }}"
+      dist-sha: ${{ steps.push-dist.outputs.sha }}
 
     steps:
       - name: Checkout source
@@ -55,11 +55,25 @@ jobs:
             --out-dir ../../npm/wasm \
             --out-name mid_qr_wasm
 
+      - name: Install binaryen (wasm-opt)
+        run: |
+          sudo apt-get install -y binaryen
+          wasm-opt --version
+
+      - name: Optimise WASM with full proposal support
+        run: |
+          wasm-opt npm/wasm/mid_qr_wasm_bg.wasm \
+            -Oz \
+            --enable-bulk-memory \
+            --enable-nontrapping-float-to-int \
+            --enable-sign-ext \
+            --enable-mutable-globals \
+            -o npm/wasm/mid_qr_wasm_bg.wasm
+          echo "wasm-opt done ($(du -sh npm/wasm/mid_qr_wasm_bg.wasm | cut -f1))"
+
       - name: Verify WASM artefacts exist
         run: |
-          for f in npm/wasm/mid_qr_wasm_bg.wasm \
-                   npm/wasm/mid_qr_wasm.js \
-                   npm/wasm/mid_qr_wasm.d.ts; do
+          for f in npm/wasm/mid_qr_wasm_bg.wasm npm/wasm/mid_qr_wasm.js npm/wasm/mid_qr_wasm.d.ts; do
             if [ ! -f "$f" ]; then
               echo "::error::Missing expected WASM artefact: $f"
               exit 1
@@ -142,16 +156,12 @@ jobs:
           Built artefacts. Do not edit manually.
           Source is on the main branch.
 
-          ## Install
+          Install via npm:
+            npm install github:Mid-D-Man/mid-qr#dist
 
-          ```bash
-          npm install github:Mid-D-Man/mid-qr#dist
-          ```
-
-          ## Blazor
-
-          Copy blazor/wasm/ to wwwroot/wasm/
-          Copy blazor/js/   to wwwroot/js/
+          Blazor:
+            Copy blazor/wasm/ to wwwroot/wasm/
+            Copy blazor/js/   to wwwroot/js/
           DISTEOF
 
       - name: Push dist branch
@@ -159,23 +169,18 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
           git fetch origin dist 2>/dev/null || true
           git checkout --orphan dist-tmp
-
           git rm -rf . --quiet 2>/dev/null || true
           cp -r dist-out/. .
           rm -rf dist-out
-
           git add .
           if git diff --staged --quiet; then
             echo "nothing changed"
             exit 0
           fi
-
           git commit -m "chore: dist build $(date -u '+%Y-%m-%dT%H:%M:%SZ') [skip ci]"
           git push origin HEAD:dist --force
-
           SHA=$(git rev-parse HEAD)
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "dist branch updated: $SHA"
