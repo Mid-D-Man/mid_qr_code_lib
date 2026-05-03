@@ -1,33 +1,28 @@
 //! Static-image QR decode via rxing.
 //!
-//! ## Why Luma8LuminanceSource
-//! `BufferedImageLuminanceSource` is feature-gated behind rxing's `image`
-//! feature which uses std::fs and cannot compile to wasm32-unknown-unknown.
-//! `Luma8LuminanceSource` is the documented WASM-safe alternative.
+//! ## API used
 //!
-//! ## Why encoding_rs feature
-//! rxing 0.8 requires either "encoding_rs" or "legacy_encoding" to be
-//! enabled — it is a hard compile_error otherwise. We use "encoding_rs"
-//! because it compiles to WASM cleanly (Mozilla's implementation).
+//! rxing docs recommend QRCodeReader + immutable_decode for QR-only decoding.
+//! MultiFormatReader panics on inputs that QRCodeReader handles as Err.
 //!
 //! ## Grayscale weights
-//! RGBA → luma uses R×77 + G×150 + B×29 >> 8, matching the nimiq worker's
-//! integer-approximation weights for consistent behaviour across both paths.
+//!
+//! RGBA → luma uses R×77 + G×150 + B×29 >> 8, matching nimiq scanner weights.
 
 use crate::error::QrError;
 
 use rxing::{
     common::HybridBinarizer,
+    qrcode::QRCodeReader,
     BinaryBitmap,
     Luma8LuminanceSource,
-    MultiFormatReader,
     Reader,
 };
 
 // ── Grayscale conversion ──────────────────────────────────────────────────────
 
 /// Convert RGBA bytes to luma using nimiq-compatible weights.
-/// Formula: `(R×77 + G×150 + B×29) >> 8`
+/// Formula per pixel: `(R×77 + G×150 + B×29) >> 8`
 pub fn rgba_to_luma(rgba: &[u8]) -> Vec<u8> {
     rgba.chunks_exact(4)
         .map(|p| {
@@ -39,14 +34,17 @@ pub fn rgba_to_luma(rgba: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-// ── Internal ──────────────────────────────────────────────────────────────────
+// ── Internal decode ───────────────────────────────────────────────────────────
 
 fn decode_luma_inner(luma: Vec<u8>, width: u32, height: u32) -> Result<String, QrError> {
+    // Use QRCodeReader (not MultiFormatReader) as recommended by rxing docs
+    // for QR-only decoding with Luma8LuminanceSource.
+    // immutable_decode is the stable API for 0.8+.
     let source    = Luma8LuminanceSource::new(luma, width, height);
     let binarizer = HybridBinarizer::new(source);
     let mut bitmap = BinaryBitmap::new(binarizer);
 
-    MultiFormatReader::default()
+    QRCodeReader::default()
         .decode(&mut bitmap)
         .map(|r| r.getText().to_owned())
         .map_err(|e| QrError::DecodeError(format!("{e:?}")))
@@ -67,7 +65,7 @@ pub fn decode_from_luma(luma: &[u8], width: u32, height: u32) -> Result<String, 
     decode_luma_inner(luma.to_vec(), width, height)
 }
 
-/// Decode a QR code from an RGBA buffer (e.g. `canvas.getImageData().data`).
+/// Decode a QR code from an RGBA buffer (`canvas.getImageData().data`).
 /// `rgba.len()` must equal `width * height * 4`.
 pub fn decode_from_rgba(rgba: &[u8], width: u32, height: u32) -> Result<String, QrError> {
     let expected = (width * height * 4) as usize;
@@ -115,11 +113,11 @@ mod tests {
     }
 
     #[test]
-    fn blank_image_no_panic() {
-        // Must return an error, not panic
+    fn blank_image_returns_error_not_panic() {
+        // Must return Err, must not panic
         assert!(matches!(
             decode_from_luma(&vec![128u8; 100], 10, 10),
             Err(QrError::DecodeError(_))
         ));
     }
-}
+                }
