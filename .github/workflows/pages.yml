@@ -72,9 +72,10 @@ jobs:
         run: |
           NIMIQ="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
           mkdir -p npm/src/worker
-          curl -fsSL "$NIMIQ/qr-scanner.min.js"        -o npm/src/worker/qr-scanner.min.js
-          curl -fsSL "$NIMIQ/qr-scanner-worker.min.js" -o npm/src/worker/qr-scanner-worker.min.js
-          echo "nimiq scanner files fetched"
+          for f in qr-scanner.min.js qr-scanner-worker.min.js qr-scanner.umd.min.js; do
+            curl -fsSL "$NIMIQ/$f" -o "npm/src/worker/$f"
+            echo "fetched $f"
+          done
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -113,20 +114,20 @@ jobs:
               body { font-family: system-ui, sans-serif; background: #0f172a; color: #f1f5f9;
                      display: flex; flex-direction: column; align-items: center;
                      justify-content: center; min-height: 100vh; margin: 0; gap: 16px; }
-              h1   { color: #38bdf8; }
-              p    { color: #94a3b8; }
-              #qr  { min-height: 120px; min-width: 120px; background: #1e293b;
-                     border-radius: 8px; display: flex; align-items: center;
-                     justify-content: center; padding: 12px; }
+              h1 { color: #38bdf8; }
+              p  { color: #94a3b8; }
+              #qr { min-height: 120px; min-width: 120px; background: #1e293b;
+                    border-radius: 8px; display: flex; align-items: center;
+                    justify-content: center; padding: 12px; }
               .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem;
                        font-weight: 600; background: #1e293b; color: #94a3b8; }
-              .ok    { background: rgba(74,222,128,.15); color: #4ade80; }
-              .err   { background: rgba(248,113,113,.15); color: #f87171; }
+              .ok  { background: rgba(74,222,128,.15); color: #4ade80; }
+              .err { background: rgba(248,113,113,.15); color: #f87171; }
             </style>
           </head>
           <body>
-            <h1>mid-qr <span class="badge" id="badge">loading…</span></h1>
-            <p>Commit <code>test/index.html</code> from the repo source for the full test app.</p>
+            <h1>mid-qr <span class="badge" id="badge">loading...</span></h1>
+            <p>Commit test/index.html from the repo source for the full test app.</p>
             <div id="qr"><span style="color:#475569">QR appears here</span></div>
             <script type="module">
               const wasmUrl = new URL('./wasm/mid_qr_wasm_bg.wasm', location.href);
@@ -150,7 +151,7 @@ jobs:
           HTMLEOF
             echo "placeholder written"
           else
-            echo "test/index.html exists — using repo version"
+            echo "test/index.html exists"
           fi
 
       - name: Assemble GitHub Pages output
@@ -163,6 +164,7 @@ jobs:
           cp npm/dist/index.js                         gh-pages-out/js/mid-qr.js
           cp npm/src/worker/qr-scanner.min.js          gh-pages-out/js/worker/
           cp npm/src/worker/qr-scanner-worker.min.js   gh-pages-out/js/worker/
+          cp npm/src/worker/qr-scanner.umd.min.js      gh-pages-out/js/worker/
           touch gh-pages-out/.nojekyll
           echo "Pages tree:"
           find gh-pages-out -type f | sort
