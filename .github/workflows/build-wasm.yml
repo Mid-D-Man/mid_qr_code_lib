@@ -93,7 +93,7 @@ jobs:
         run: |
           NIMIQ_BASE="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
           mkdir -p npm/src/worker
-          for f in qr-scanner.min.js qr-scanner-worker.min.js; do
+          for f in qr-scanner.min.js qr-scanner-worker.min.js qr-scanner.umd.min.js; do
             TARGET="npm/src/worker/$f"
             if [ ! -f "$TARGET" ]; then
               curl -fsSL "$NIMIQ_BASE/$f" -o "$TARGET"
@@ -103,7 +103,7 @@ jobs:
             fi
           done
           mkdir -p wrappers/blazor/wwwroot/js/worker
-          for f in qr-scanner.min.js qr-scanner-worker.min.js; do
+          for f in qr-scanner.min.js qr-scanner-worker.min.js qr-scanner.umd.min.js; do
             cp "npm/src/worker/$f" "wrappers/blazor/wwwroot/js/worker/$f"
             echo "copied to blazor wwwroot: $f"
           done
@@ -140,6 +140,7 @@ jobs:
           cp    npm/package.json dist-out/npm/
           cp npm/src/worker/qr-scanner.min.js          dist-out/npm/worker/
           cp npm/src/worker/qr-scanner-worker.min.js   dist-out/npm/worker/
+          cp npm/src/worker/qr-scanner.umd.min.js      dist-out/npm/worker/
           cp -r wrappers/blazor/wwwroot/wasm dist-out/blazor/wasm
           cp -r wrappers/blazor/wwwroot/js   dist-out/blazor/js
           cp -r test/. dist-out/test/
