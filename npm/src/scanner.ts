@@ -6,23 +6,27 @@ import type {
   CameraInfo,
 } from './types.js';
 
-// ── nimiq QrScanner type declaration ─────────────────────────────────────────
-// The nimiq scanner ships as a minified JS file with no bundled .d.ts.
-// We declare the shape we use here so TypeScript is satisfied without
-// requiring a declaration file alongside the .js.
+// ── nimiq QrScanner interface ─────────────────────────────────────────────────
+// Nimiq is loaded as a UMD <script> tag (qr-scanner.umd.min.js) which sets
+// window.QrScanner. We never import it as an ES module because:
+//   • rollup inlineDynamicImports bakes the file into mid-qr.js
+//   • Nimiq internally does import("./qr-scanner-worker.min.js")
+//   • After inlining, that relative path resolves from mid-qr.js, not from
+//     the original worker directory — the worker is never found
+//   • Result: QrScanner is constructed but its decode engine silently fails
 
 interface QrScannerStatic {
   new(
     video: HTMLVideoElement,
     onDecode: (result: { data: string; cornerPoints: Array<{ x: number; y: number }> }) => void,
     options: {
-      preferredCamera?:         string;
-      maxScansPerSecond?:        number;
-      highlightScanRegion?:      boolean;
-      highlightCodeOutline?:     boolean;
-      returnDetailedScanResult:  true;
-      onDecodeError?:            (err: Error | string) => void;
-      calculateScanRegion?:      (video: HTMLVideoElement) => {
+      preferredCamera?:          string;
+      maxScansPerSecond?:         number;
+      highlightScanRegion?:       boolean;
+      highlightCodeOutline?:      boolean;
+      returnDetailedScanResult:   true;
+      onDecodeError?:             (err: Error | string) => void;
+      calculateScanRegion?:       (video: HTMLVideoElement) => {
         x: number; y: number; width: number; height: number;
         downScaledWidth?: number; downScaledHeight?: number;
       };
@@ -36,7 +40,6 @@ interface QrScannerStatic {
 interface QrScannerInstance {
   start(): Promise<void>;
   stop(): void;
-  pause(stopStreamImmediately?: boolean): Promise<boolean>;
   destroy(): void;
   setCamera(facingModeOrDeviceId: string): Promise<void>;
   isFlashOn(): boolean;
@@ -45,16 +48,13 @@ interface QrScannerInstance {
   readonly $video: HTMLVideoElement;
 }
 
-// ── Resolve QrScanner ─────────────────────────────────────────────────────────
-// Supports both UMD (loaded via <script> tag — sets window.QrScanner)
-// and ES module import (bundler / Node environments).
+// ── Resolve QrScanner from window ─────────────────────────────────────────────
 
 let _QrScannerClass: QrScannerStatic | null = null;
 
-async function getQrScannerClass(): Promise<QrScannerStatic> {
+function getQrScannerClass(): QrScannerStatic {
   if (_QrScannerClass) return _QrScannerClass;
 
-  // UMD bundle loaded via <script>
   const win = typeof window !== 'undefined'
     ? (window as unknown as Record<string, unknown>)
     : null;
@@ -64,21 +64,16 @@ async function getQrScannerClass(): Promise<QrScannerStatic> {
     return _QrScannerClass;
   }
 
-  // ES module — cast through unknown to avoid missing-declaration-file error.
-  // The module satisfies QrScannerStatic at runtime.
-  try {
-    const mod = await import('./worker/qr-scanner.min.js') as unknown as { default: QrScannerStatic };
-    _QrScannerClass = mod.default;
-    return _QrScannerClass;
-  } catch {
-    throw new Error(
-      'mid-qr: QrScanner not found. ' +
-      'Load qr-scanner.umd.min.js via <script> or ensure npm/src/worker/ is bundled.',
-    );
-  }
+  throw new Error(
+    'mid-qr: QrScanner not found on window. ' +
+    'Add <script src="path/to/qr-scanner.umd.min.js"></script> ' +
+    'BEFORE your module script in your HTML file. ' +
+    'The UMD build sets window.QrScanner and correctly resolves ' +
+    'the qr-scanner-worker.min.js path relative to itself.',
+  );
 }
 
-// ── Default scan-region calculator ────────────────────────────────────────────
+// ── Default scan region ───────────────────────────────────────────────────────
 
 function defaultScanRegion(video: HTMLVideoElement) {
   const size = Math.round(Math.min(video.videoWidth, video.videoHeight) * 0.80);
@@ -92,14 +87,6 @@ function defaultScanRegion(video: HTMLVideoElement) {
 
 // ── MidQrScanner ──────────────────────────────────────────────────────────────
 
-/**
- * Real-time camera QR code scanner backed by the nimiq qr-scanner library.
- *
- * ```ts
- * const scanner = await MidQrScanner.create(videoEl, result => console.log(result.data));
- * await scanner.start();
- * ```
- */
 export class MidQrScanner {
   private readonly _inner:    QrScannerInstance;
   private readonly _video:    HTMLVideoElement;
@@ -124,20 +111,18 @@ export class MidQrScanner {
     this._onError  = onError;
   }
 
-  // ── Factory ────────────────────────────────────────────────────────────────
-
   static async create(
     video:    HTMLVideoElement,
     onDecode: OnDecodeCallback,
     options?: ScannerOptions,
     onError?: OnDecodeErrorCallback,
   ): Promise<MidQrScanner> {
-    const QrScanner = await getQrScannerClass();
-    const cameras   = await QrScanner.listCameras(true).catch(() => []);
+    const QrScanner = getQrScannerClass();
+
+    const cameras = await QrScanner.listCameras(true).catch(() => []);
 
     const preferred   = options?.preferredCamera ?? 'environment';
     let   startCamera = preferred;
-
     if (preferred !== 'environment' && preferred !== 'user') {
       const found = cameras.find(c => c.id === preferred);
       startCamera = found?.id ?? 'environment';
@@ -146,16 +131,15 @@ export class MidQrScanner {
     let startIdx = 0;
     if (cameras.length > 0) {
       const envIdx = cameras.findIndex(c => /back|rear|environment/i.test(c.label));
-      startIdx = preferred === 'environment'
-        ? (envIdx >= 0 ? envIdx : 0)
-        : 0;
+      if (preferred === 'environment' && envIdx >= 0) startIdx = envIdx;
     }
 
     const inner = new QrScanner(
       video,
-      (nimiqResult) => {
-        onDecode({ data: nimiqResult.data, cornerPoints: nimiqResult.cornerPoints });
-      },
+      nimiqResult => onDecode({
+        data:         nimiqResult.data,
+        cornerPoints: nimiqResult.cornerPoints,
+      }),
       {
         preferredCamera:           startCamera,
         maxScansPerSecond:         options?.maxScansPerSecond    ?? 5,
@@ -167,12 +151,10 @@ export class MidQrScanner {
       },
     );
 
-    const instance    = new MidQrScanner(inner, video, cameras, onDecode, onError);
+    const instance      = new MidQrScanner(inner, video, cameras, onDecode, onError);
     instance._cameraIdx = startIdx;
     return instance;
   }
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   async start(): Promise<void> {
     await this._inner.start();
@@ -202,54 +184,43 @@ export class MidQrScanner {
     this._scanning = false;
   }
 
-  // ── Camera control ─────────────────────────────────────────────────────────
-
   async switchCamera(): Promise<void> {
     if (this._cameras.length <= 1) return;
-
     const wasScanning = this._scanning;
     if (wasScanning) this._inner.stop();
-
     this._cameraIdx = (this._cameraIdx + 1) % this._cameras.length;
     await this._inner.setCamera(this._cameras[this._cameraIdx].id);
-
     if (wasScanning) await this._inner.start();
   }
 
   async setCameraById(deviceId: string): Promise<void> {
     const idx = this._cameras.findIndex(c => c.id === deviceId);
     if (idx === -1) throw new Error(`mid-qr: camera '${deviceId}' not found`);
-
     const wasScanning = this._scanning;
     if (wasScanning) this._inner.stop();
-
     this._cameraIdx = idx;
     await this._inner.setCamera(deviceId);
-
     if (wasScanning) await this._inner.start();
   }
 
-  // ── Flash ──────────────────────────────────────────────────────────────────
-
-  get flashOn(): boolean           { return this._inner.isFlashOn(); }
+  get flashOn(): boolean                { return this._inner.isFlashOn(); }
   async hasFlash(): Promise<boolean>    { return this._inner.hasFlash(); }
   async toggleFlash(): Promise<void>    { return this._inner.toggleFlash(); }
-
-  // ── State ──────────────────────────────────────────────────────────────────
-
-  get isScanning(): boolean        { return this._scanning; }
-  get cameras(): CameraInfo[]      { return [...this._cameras]; }
+  get isScanning(): boolean             { return this._scanning; }
+  get cameras(): CameraInfo[]           { return [...this._cameras]; }
   get currentCamera(): CameraInfo | undefined { return this._cameras[this._cameraIdx]; }
 
-  // ── Static utilities ───────────────────────────────────────────────────────
-
   static async hasCamera(): Promise<boolean> {
-    const QrScanner = await getQrScannerClass();
-    return QrScanner.hasCamera();
+    try {
+      const QrScanner = getQrScannerClass();
+      return QrScanner.hasCamera();
+    } catch { return false; }
   }
 
   static async listCameras(): Promise<CameraInfo[]> {
-    const QrScanner = await getQrScannerClass();
-    return QrScanner.listCameras(true).catch(() => []);
+    try {
+      const QrScanner = getQrScannerClass();
+      return QrScanner.listCameras(true).catch(() => []);
+    } catch { return []; }
   }
-      }
+}
