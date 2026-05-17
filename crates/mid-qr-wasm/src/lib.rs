@@ -5,8 +5,12 @@ use serde::Deserialize;
 
 #[cfg(feature = "generate")]
 use mid_qr_core::generate::{
-    generate as core_generate, ErrorLevel, GenerateOptions,
-    GradientDirection, GradientOptions, LogoBorderOptions, LogoOptions,
+    generate as core_generate,
+    ErrorLevel, GenerateOptions,
+    GradientDirection, GradientOptions,
+    LogoBorderOptions, LogoOptions,
+    ModuleStyle, CornerSquareStyle, CornerDotStyle,
+    EyeColorOptions, FrameOptions,
 };
 
 #[cfg(feature = "decode")]
@@ -18,12 +22,6 @@ use mid_qr_core::QrError;
 
 #[wasm_bindgen(start)]
 pub fn init() {
-    // Install the panic hook so panics appear in the browser console as
-    // readable messages rather than just "RuntimeError: unreachable executed".
-    // This is compiled in when the `debug` feature is enabled.
-    // In release builds without `debug`, panics still propagate correctly
-    // through wasm-bindgen's catch_unwind wrapper (requires panic="unwind"
-    // in the profile — see workspace Cargo.toml).
     #[cfg(feature = "debug")]
     console_error_panic_hook::set_once();
 }
@@ -70,18 +68,42 @@ struct JsLogoOptions {
 #[cfg(feature = "generate")]
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct JsGenerateOptions {
-    data:        String,
-    size:        Option<u32>,
-    dark_color:  Option<String>,
-    light_color: Option<String>,
-    error_level: Option<String>,
-    margin:      Option<bool>,
-    gradient:    Option<JsGradientOptions>,
-    logo:        Option<JsLogoOptions>,
+struct JsEyeColorOptions {
+    outer: String,
+    inner: String,
 }
 
-// ── Conversion ────────────────────────────────────────────────────────────────
+#[cfg(feature = "generate")]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct JsFrameOptions {
+    style:      u32,
+    color:      String,
+    text:       Option<String>,
+    text_color: Option<String>,
+}
+
+#[cfg(feature = "generate")]
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct JsGenerateOptions {
+    data:                String,
+    size:                Option<u32>,
+    dark_color:          Option<String>,
+    light_color:         Option<String>,
+    error_level:         Option<String>,
+    margin:              Option<bool>,
+    gradient:            Option<JsGradientOptions>,
+    logo:                Option<JsLogoOptions>,
+    // Style options
+    module_style:        Option<String>,
+    corner_square_style: Option<String>,
+    corner_dot_style:    Option<String>,
+    eye_color:           Option<JsEyeColorOptions>,
+    frame:               Option<JsFrameOptions>,
+}
+
+// ── Options builder ───────────────────────────────────────────────────────────
 
 #[cfg(feature = "generate")]
 fn build_core_opts(js: JsGenerateOptions) -> GenerateOptions {
@@ -103,6 +125,18 @@ fn build_core_opts(js: JsGenerateOptions) -> GenerateOptions {
         }),
     });
 
+    let eye_color = js.eye_color.map(|e| EyeColorOptions {
+        outer: e.outer,
+        inner: e.inner,
+    });
+
+    let frame = js.frame.map(|f| FrameOptions {
+        style:      f.style,
+        color:      f.color,
+        text:       f.text.unwrap_or_else(|| "Scan Me!".to_string()),
+        text_color: f.text_color.unwrap_or_else(|| "#ffffff".to_string()),
+    });
+
     GenerateOptions {
         data:        js.data,
         size:        js.size.unwrap_or(300),
@@ -112,9 +146,23 @@ fn build_core_opts(js: JsGenerateOptions) -> GenerateOptions {
             .as_deref()
             .map(ErrorLevel::from_str)
             .unwrap_or(ErrorLevel::M),
-        margin:      js.margin.unwrap_or(true),
+        margin:  js.margin.unwrap_or(true),
         gradient,
         logo,
+        module_style: js.module_style
+            .as_deref()
+            .map(ModuleStyle::from_str)
+            .unwrap_or_default(),
+        corner_square_style: js.corner_square_style
+            .as_deref()
+            .map(CornerSquareStyle::from_str)
+            .unwrap_or_default(),
+        corner_dot_style: js.corner_dot_style
+            .as_deref()
+            .map(CornerDotStyle::from_str)
+            .unwrap_or_default(),
+        eye_color,
+        frame,
     }
 }
 
@@ -167,7 +215,7 @@ pub fn rgba_to_luma_js(rgba: &[u8]) -> Vec<u8> {
     rgba_to_luma(rgba)
 }
 
-// ── Utility ───────────────────────────────────────────────────────────────────
+// ── Utility / capability queries ──────────────────────────────────────────────
 
 #[wasm_bindgen(js_name = "getVersion")]
 pub fn get_version() -> String {
@@ -182,4 +230,25 @@ pub fn get_supported_error_levels() -> String {
 #[wasm_bindgen(js_name = "getSupportedGradientDirections")]
 pub fn get_supported_gradient_directions() -> String {
     "linear-x,linear-y,diagonal,radial".to_string()
+}
+
+#[wasm_bindgen(js_name = "getSupportedModuleStyles")]
+pub fn get_supported_module_styles() -> String {
+    "square,dot,rounded,extra-rounded,classy,classy-rounded".to_string()
+}
+
+#[wasm_bindgen(js_name = "getSupportedCornerSquareStyles")]
+pub fn get_supported_corner_square_styles() -> String {
+    "square,extra-rounded,dot".to_string()
+}
+
+#[wasm_bindgen(js_name = "getSupportedCornerDotStyles")]
+pub fn get_supported_corner_dot_styles() -> String {
+    "square,dot".to_string()
+}
+
+#[wasm_bindgen(js_name = "getSupportedFrameStyles")]
+pub fn get_supported_frame_styles() -> String {
+    // style index : description
+    "0:none,1:square-below,2:rounded-below,3:square-above,4:rounded-above,5:badge-square,6:badge-rounded,7:border-thick,8:border-double".to_string()
 }
