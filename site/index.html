@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Free QR code generator — custom dots, gradients, logos, frames. No signup. No limits.">
+  <meta property="og:title" content="mid-qr — Free QR Code Generator">
+  <meta property="og:description" content="Generate stunning custom QR codes. Dot styles, gradients, logos, frames. 100% free, no account needed.">
+  <meta name="theme-color" content="#0d1117">
+  <title>mid-qr — Free QR Code Generator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/panels.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+  <div class="bg-orb bg-orb--blue" aria-hidden="true"></div>
+  <div class="bg-orb bg-orb--red"  aria-hidden="true"></div>
+
+  <!-- ═══ HEADER ═════════════════════════════════════════ -->
+  <header class="site-header" role="banner">
+    <div class="header-inner">
+
+      <a href="/" class="logo" aria-label="mid-qr home">
+        <svg class="logo__mark" viewBox="0 0 28 28" aria-hidden="true">
+          <rect x="2"  y="2"  width="10" height="10" rx="2" fill="url(#g-logo)"/>
+          <rect x="16" y="2"  width="10" height="10" rx="2" fill="url(#g-logo)"/>
+          <rect x="2"  y="16" width="10" height="10" rx="2" fill="url(#g-logo)"/>
+          <rect x="18" y="18" width="4"  height="4"  rx="1" fill="url(#g-logo)"/>
+          <rect x="16" y="16" width="4"  height="4"  rx="1" fill="url(#g-logo)" opacity=".5"/>
+          <rect x="22" y="16" width="4"  height="4"  rx="1" fill="url(#g-logo)" opacity=".5"/>
+          <rect x="16" y="22" width="4"  height="4"  rx="1" fill="url(#g-logo)" opacity=".5"/>
+          <defs>
+            <linearGradient id="g-logo" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stop-color="#e63946"/>
+              <stop offset="50%"  stop-color="#7c3aed"/>
+              <stop offset="100%" stop-color="#2563eb"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="logo__text">mid<span class="logo__accent">-qr</span></span>
+        <span class="logo__chip" aria-label="Free to use">FREE</span>
+      </a>
+
+      <p class="header-tagline" aria-hidden="true">No signup &middot; No watermarks &middot; No limits</p>
+
+      <nav class="header-nav" aria-label="Site links">
+        <a href="https://github.com/Mid-D-Man/mid-qr"
+           class="header-link" target="_blank" rel="noopener noreferrer">
+          <svg class="header-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          GitHub
+        </a>
+      </nav>
+
+    </div>
+  </header>
+
+
+  <!-- ═══ MAIN ════════════════════════════════════════════ -->
+  <main class="site-main">
+    <div class="workspace" id="workspace">
+
+      <!-- ──────────────────────────────────────────────────
+           LEFT — Controls panel
+      ─────────────────────────────────────────────────── -->
+      <section class="panel panel--controls" id="panel-controls" aria-label="QR code options">
+
+        <nav class="tab-nav" role="tablist" aria-label="Option categories">
+          <button class="tab-btn is-active" role="tab" data-tab="content"
+                  id="tb-content" aria-selected="true" aria-controls="tp-content">
+            <svg class="tab-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <rect x="1" y="3" width="14" height="2" rx="1"/>
+              <rect x="1" y="7" width="10" height="2" rx="1"/>
+              <rect x="1" y="11" width="12" height="2" rx="1"/>
+            </svg>
+            Content
+          </button>
+          <button class="tab-btn" role="tab" data-tab="style"
+                  id="tb-style" aria-selected="false" aria-controls="tp-style">
+            <svg class="tab-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="8" cy="8" r="6"/>
+              <circle cx="8" cy="8" r="2.5" fill="currentColor" stroke="none"/>
+            </svg>
+            Style
+          </button>
+          <button class="tab-btn" role="tab" data-tab="eyes"
+                  id="tb-eyes" aria-selected="false" aria-controls="tp-eyes">
+            <svg class="tab-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M2 8s2.5-5 6-5 6 5 6 5-2.5 5-6 5-6-5-6-5z"/>
+              <circle cx="8" cy="8" r="2"/>
+            </svg>
+            Eyes
+          </button>
+          <button class="tab-btn" role="tab" data-tab="frame"
+                  id="tb-frame" aria-selected="false" aria-controls="tp-frame">
+            <svg class="tab-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <rect x="1.5" y="1.5" width="13" height="13" rx="2"/>
+              <rect x="4.5" y="4.5" width="7" height="7" rx="1"/>
+            </svg>
+            Frame
+          </button>
+          <button class="tab-btn" role="tab" data-tab="logo"
+                  id="tb-logo" aria-selected="false" aria-controls="tp-logo">
+            <svg class="tab-btn__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="8" cy="6" r="3"/>
+              <path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5"/>
+            </svg>
+            Logo
+          </button>
+        </nav>
+
+        <div class="tab-body">
+
+          <!-- ╔═ CONTENT ══════════════════════════════╗ -->
+          <div class="tab-panel is-active" id="tp-content" role="tabpanel" aria-labelledby="tb-content">
+
+            <div class="field-block">
+              <span class="field-label">Content Type</span>
+              <div class="type-grid" role="group" aria-label="Content type">
+                <button class="type-btn is-active" data-type="url">🌐 URL</button>
+                <button class="type-btn" data-type="text">📝 Text</button>
+                <button class="type-btn" data-type="wifi">📶 WiFi</button>
+                <button class="type-btn" data-type="email">✉ Email</button>
+                <button class="type-btn" data-type="phone">📞 Phone</button>
+                <button class="type-btn" data-type="sms">💬 SMS</button>
+              </div>
+            </div>
+
+            <div id="fields-url">
+              <div class="field-block">
+                <label class="field-label" for="input-url">Website URL</label>
+                <input type="url" id="input-url" class="field-input"
+                       placeholder="https://example.com"
+                       value="https://github.com/Mid-D-Man/mid-qr"
+                       autocomplete="off" spellcheck="false">
+              </div>
+            </div>
+
+            <div id="fields-text" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="input-text">Text Content</label>
+                <textarea id="input-text" class="field-input field-textarea"
+                          placeholder="Enter any text…" rows="4"></textarea>
+              </div>
+            </div>
+
+            <div id="fields-wifi" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="input-wifi-ssid">Network Name (SSID)</label>
+                <input type="text" id="input-wifi-ssid" class="field-input" placeholder="MyWiFiNetwork">
+                <label class="field-label" for="input-wifi-pass">Password</label>
+                <input type="password" id="input-wifi-pass" class="field-input"
+                       placeholder="••••••••" autocomplete="off">
+                <label class="field-label" for="input-wifi-enc">Security Type</label>
+                <select id="input-wifi-enc" class="field-select">
+                  <option value="WPA">WPA / WPA2</option>
+                  <option value="WEP">WEP</option>
+                  <option value="">None (open)</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="fields-email" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="input-email-to">To</label>
+                <input type="email" id="input-email-to" class="field-input" placeholder="name@example.com">
+                <label class="field-label" for="input-email-subject">Subject</label>
+                <input type="text" id="input-email-subject" class="field-input" placeholder="Subject line">
+                <label class="field-label" for="input-email-body">Message</label>
+                <textarea id="input-email-body" class="field-input field-textarea"
+                          placeholder="Message body…" rows="3"></textarea>
+              </div>
+            </div>
+
+            <div id="fields-phone" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="input-phone">Phone Number</label>
+                <input type="tel" id="input-phone" class="field-input" placeholder="+1 234 567 8900">
+              </div>
+            </div>
+
+            <div id="fields-sms" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="input-sms-to">Phone Number</label>
+                <input type="tel" id="input-sms-to" class="field-input" placeholder="+1 234 567 8900">
+                <label class="field-label" for="input-sms-body">Message</label>
+                <textarea id="input-sms-body" class="field-input field-textarea"
+                          placeholder="SMS message…" rows="3"></textarea>
+              </div>
+            </div>
+
+            <div class="field-block">
+              <span class="field-label">Error Correction</span>
+              <div class="pill-group" role="group" aria-label="Error correction level">
+                <button class="pill" data-group="ec" data-value="L">L — 7%</button>
+                <button class="pill is-active" data-group="ec" data-value="M">M — 15%</button>
+                <button class="pill" data-group="ec" data-value="Q">Q — 25%</button>
+                <button class="pill" data-group="ec" data-value="H">H — 30%</button>
+              </div>
+            </div>
+
+            <div class="field-block">
+              <div class="label-value-row">
+                <label class="field-label" for="input-size">Output Size</label>
+                <span class="field-value"><span id="size-display">400</span> px</span>
+              </div>
+              <input type="range" id="input-size" class="field-range"
+                     min="200" max="1000" step="50" value="400">
+            </div>
+
+          </div><!-- /tp-content -->
+
+
+          <!-- ╔═ STYLE ════════════════════════════════╗ -->
+          <div class="tab-panel is-hidden" id="tp-style" role="tabpanel" aria-labelledby="tb-style">
+
+            <div class="field-block">
+              <span class="field-label">Module Shape</span>
+              <div class="style-grid" id="module-style-grid" role="group" aria-label="Module shape"></div>
+            </div>
+
+            <div class="field-block">
+              <span class="field-label">Module Colors</span>
+              <div class="color-pair">
+                <div class="color-entry">
+                  <span class="color-entry__lbl">Dark</span>
+                  <div class="color-entry__ctrl">
+                    <input type="color" id="color-dark" class="swatch" value="#000000"
+                           aria-label="Dark module color">
+                    <input type="text"  id="color-dark-hex" class="field-input field-input--hex"
+                           value="#000000" maxlength="7" spellcheck="false">
+                  </div>
+                </div>
+                <div class="color-entry">
+                  <span class="color-entry__lbl">Light</span>
+                  <div class="color-entry__ctrl">
+                    <input type="color" id="color-light" class="swatch" value="#ffffff"
+                           aria-label="Light background color">
+                    <input type="text"  id="color-light-hex" class="field-input field-input--hex"
+                           value="#ffffff" maxlength="7" spellcheck="false">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-block">
+              <div class="label-value-row">
+                <label class="field-label" for="grad-enabled">Gradient Fill</label>
+                <label class="toggle" aria-label="Enable gradient fill">
+                  <input type="checkbox" id="grad-enabled" role="switch">
+                  <span class="toggle__track"></span>
+                </label>
+              </div>
+              <div class="collapsible" id="grad-section">
+                <div class="field-block">
+                  <span class="field-label">Direction</span>
+                  <div class="pill-group" role="group" aria-label="Gradient direction">
+                    <button class="pill is-active" data-group="grad-dir" data-value="linear-x">→ H</button>
+                    <button class="pill" data-group="grad-dir" data-value="linear-y">↓ V</button>
+                    <button class="pill" data-group="grad-dir" data-value="diagonal">↘ Diagonal</button>
+                    <button class="pill" data-group="grad-dir" data-value="radial">◎ Radial</button>
+                  </div>
+                </div>
+                <div class="color-pair">
+                  <div class="color-entry">
+                    <span class="color-entry__lbl">Start</span>
+                    <div class="color-entry__ctrl">
+                      <input type="color" id="grad-c1" class="swatch" value="#e63946" aria-label="Gradient start color">
+                      <input type="text"  id="grad-c1-hex" class="field-input field-input--hex" value="#e63946" maxlength="7">
+                    </div>
+                  </div>
+                  <div class="color-entry">
+                    <span class="color-entry__lbl">End</span>
+                    <div class="color-entry__ctrl">
+                      <input type="color" id="grad-c2" class="swatch" value="#2563eb" aria-label="Gradient end color">
+                      <input type="text"  id="grad-c2-hex" class="field-input field-input--hex" value="#2563eb" maxlength="7">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /tp-style -->
+
+
+          <!-- ╔═ EYES ══════════════════════════════════╗ -->
+          <div class="tab-panel is-hidden" id="tp-eyes" role="tabpanel" aria-labelledby="tb-eyes">
+
+            <div class="field-block">
+              <span class="field-label">Outer Ring Style</span>
+              <div class="style-grid style-grid--sm" id="corner-sq-grid" role="group" aria-label="Outer ring shape"></div>
+            </div>
+
+            <div class="field-block">
+              <span class="field-label">Inner Dot Style</span>
+              <div class="style-grid style-grid--xs" id="corner-dot-grid" role="group" aria-label="Inner dot shape"></div>
+            </div>
+
+            <div class="field-block">
+              <div class="label-value-row">
+                <label class="field-label" for="eye-color-enabled">Custom Eye Colors</label>
+                <label class="toggle" aria-label="Enable custom eye colors">
+                  <input type="checkbox" id="eye-color-enabled" role="switch">
+                  <span class="toggle__track"></span>
+                </label>
+              </div>
+              <div class="collapsible" id="eye-color-section">
+                <div class="color-pair">
+                  <div class="color-entry">
+                    <span class="color-entry__lbl">Outer Ring</span>
+                    <div class="color-entry__ctrl">
+                      <input type="color" id="eye-outer" class="swatch" value="#e63946" aria-label="Eye outer color">
+                      <input type="text"  id="eye-outer-hex" class="field-input field-input--hex" value="#e63946" maxlength="7">
+                    </div>
+                  </div>
+                  <div class="color-entry">
+                    <span class="color-entry__lbl">Inner Dot</span>
+                    <div class="color-entry__ctrl">
+                      <input type="color" id="eye-inner" class="swatch" value="#2563eb" aria-label="Eye inner color">
+                      <input type="text"  id="eye-inner-hex" class="field-input field-input--hex" value="#2563eb" maxlength="7">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /tp-eyes -->
+
+
+          <!-- ╔═ FRAME ════════════════════════════════╗ -->
+          <div class="tab-panel is-hidden" id="tp-frame" role="tabpanel" aria-labelledby="tb-frame">
+
+            <div class="field-block">
+              <span class="field-label">Frame Style</span>
+              <div class="frame-grid" id="frame-style-grid" role="group" aria-label="Frame style"></div>
+            </div>
+
+            <div class="collapsible" id="frame-opts-section">
+              <div class="field-block">
+                <div class="color-pair">
+                  <div class="color-entry">
+                    <span class="color-entry__lbl">Frame Color</span>
+                    <div class="color-entry__ctrl">
+                      <input type="color" id="frame-color" class="swatch" value="#1a1a2e" aria-label="Frame color">
+                      <input type="text"  id="frame-color-hex" class="field-input field-input--hex" value="#1a1a2e" maxlength="7">
+                    </div>
+                  </div>
+                  <div class="color-entry">
+                    <span class="color-entry__lbl">Text Color</span>
+                    <div class="color-entry__ctrl">
+                      <input type="color" id="frame-text-color" class="swatch" value="#ffffff" aria-label="Frame text color">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="field-block" id="frame-text-block">
+                <label class="field-label" for="frame-text">Label Text</label>
+                <input type="text" id="frame-text" class="field-input"
+                       placeholder="Scan Me!" value="Scan Me!" maxlength="30">
+              </div>
+            </div>
+
+          </div><!-- /tp-frame -->
+
+
+          <!-- ╔═ LOGO ══════════════════════════════════╗ -->
+          <div class="tab-panel is-hidden" id="tp-logo" role="tabpanel" aria-labelledby="tb-logo">
+
+            <div class="upload-zone" id="upload-zone"
+                 role="button" tabindex="0" aria-label="Upload logo image. Click or drag and drop.">
+              <div class="upload-zone__ico" aria-hidden="true">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M20 26V14M14 20l6-6 6 6"/>
+                  <path d="M8 28c0 2.2 1.8 4 4 4h16c2.2 0 4-1.8 4-4"/>
+                </svg>
+              </div>
+              <p class="upload-zone__primary">Drop image or <span>browse files</span></p>
+              <p class="upload-zone__hint">PNG · SVG · JPG · WebP &nbsp;·&nbsp; Max 1 MB</p>
+              <input type="file" id="logo-file" class="upload-zone__input"
+                     accept="image/*" aria-label="Select logo file">
+            </div>
+
+            <div class="logo-opts is-hidden" id="logo-opts">
+              <div class="logo-strip">
+                <img id="logo-thumb" src="" alt="Logo preview" class="logo-thumb">
+                <div class="logo-strip__info">
+                  <span id="logo-filename" class="logo-filename"></span>
+                  <button class="btn btn--ghost btn--xs" id="logo-remove">✕ Remove</button>
+                </div>
+              </div>
+
+              <div class="field-block">
+                <div class="label-value-row">
+                  <label class="field-label" for="logo-size">Logo Size</label>
+                  <span class="field-value"><span id="logo-size-display">25</span>%</span>
+                </div>
+                <input type="range" id="logo-size" class="field-range" min="10" max="35" step="1" value="25">
+              </div>
+
+              <div class="field-block">
+                <div class="label-value-row">
+                  <label class="field-label" for="logo-border-enabled">White Border</label>
+                  <label class="toggle" aria-label="Enable logo border">
+                    <input type="checkbox" id="logo-border-enabled" role="switch" checked>
+                    <span class="toggle__track"></span>
+                  </label>
+                </div>
+                <div class="collapsible" id="logo-border-section">
+                  <div class="color-entry">
+                    <span class="color-entry__lbl">Border Color</span>
+                    <div class="color-entry__ctrl">
+                      <input type="color" id="logo-border-color" class="swatch" value="#ffffff" aria-label="Logo border color">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p class="hint-callout">
+                💡 Set <strong>Error Correction → H</strong> in the Content tab for best results with logos.
+              </p>
+            </div>
+
+          </div><!-- /tp-logo -->
+
+        </div><!-- /tab-body -->
+
+        <div class="controls-footer">
+          <button class="btn btn--generate" id="btn-generate">
+            Generate QR Code
+            <svg class="btn__arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4"/>
+            </svg>
+          </button>
+        </div>
+
+      </section><!-- /panel--controls -->
+
+
+      <!-- ──────────────────────────────────────────────────
+           RIGHT — Preview panel
+      ─────────────────────────────────────────────────── -->
+      <aside class="panel panel--preview" id="panel-preview" aria-label="QR code preview">
+
+        <div class="preview-header">
+          <h1 class="preview-title">Preview</h1>
+          <div class="preview-actions">
+            <button class="btn btn--ghost btn--sm" id="btn-copy" disabled aria-label="Copy SVG markup">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="btn__icon-sm" aria-hidden="true">
+                <rect x="5" y="5" width="9" height="9" rx="1.5"/>
+                <path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5"/>
+              </svg>
+              Copy SVG
+            </button>
+
+            <div class="download-group" id="download-group">
+              <button class="btn btn--primary btn--sm" id="btn-download" disabled aria-label="Download QR code">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="btn__icon-sm" aria-hidden="true">
+                  <path d="M8 2v8M5 7l3 3 3-3"/>
+                  <path d="M3 12h10"/>
+                </svg>
+                Download
+              </button>
+              <button class="btn btn--primary btn--sm btn--icon" id="btn-fmt-toggle"
+                      aria-label="Choose format" aria-haspopup="true" aria-expanded="false">▾</button>
+              <div class="fmt-menu" id="fmt-menu" role="menu" hidden>
+                <button class="fmt-option is-active" data-fmt="svg" role="menuitem">
+                  <strong>SVG</strong> — vector, infinite scale
+                </button>
+                <button class="fmt-option" data-fmt="png" role="menuitem">
+                  <strong>PNG</strong> — raster, 2× resolution
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="qr-stage" id="qr-stage">
+          <div class="qr-loading is-hidden" id="qr-loading" role="status" aria-label="Generating QR code">
+            <div class="qr-spinner"></div>
+          </div>
+          <div class="qr-output" id="qr-output">
+            <div class="qr-empty" id="qr-empty">
+              <div class="qr-empty__art" aria-hidden="true">
+                <svg viewBox="0 0 120 120" fill="none">
+                  <rect x="10" y="10" width="40" height="40" rx="4" stroke="url(#eg)" stroke-width="2" fill="none" stroke-dasharray="4 3"/>
+                  <rect x="70" y="10" width="40" height="40" rx="4" stroke="url(#eg)" stroke-width="2" fill="none" stroke-dasharray="4 3"/>
+                  <rect x="10" y="70" width="40" height="40" rx="4" stroke="url(#eg)" stroke-width="2" fill="none" stroke-dasharray="4 3"/>
+                  <rect x="20" y="20" width="20" height="20" rx="2" fill="url(#eg)" opacity=".3"/>
+                  <rect x="80" y="20" width="20" height="20" rx="2" fill="url(#eg)" opacity=".3"/>
+                  <rect x="20" y="80" width="20" height="20" rx="2" fill="url(#eg)" opacity=".3"/>
+                  <rect x="70" y="70" width="14" height="14" rx="2" fill="url(#eg)" opacity=".2"/>
+                  <rect x="88" y="70" width="14" height="14" rx="2" fill="url(#eg)" opacity=".15"/>
+                  <rect x="70" y="88" width="14" height="14" rx="2" fill="url(#eg)" opacity=".15"/>
+                  <rect x="88" y="88" width="14" height="14" rx="2" fill="url(#eg)" opacity=".2"/>
+                  <defs>
+                    <linearGradient id="eg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#e63946" opacity=".6"/>
+                      <stop offset="1" stop-color="#2563eb" opacity=".6"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <p class="qr-empty__label">Hit <strong>Generate QR Code</strong> to get started</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-bar" id="status-bar" role="status" aria-live="polite">
+          <span class="status-dot" id="status-dot" data-state="idle"></span>
+          <span id="status-text">Ready</span>
+        </div>
+
+      </aside><!-- /panel--preview -->
+
+    </div><!-- /workspace -->
+  </main>
+
+  <script src="js/worker/qr-scanner.umd.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+
+</body>
+    </html>
